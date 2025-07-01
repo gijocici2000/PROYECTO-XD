@@ -1,0 +1,210 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Ventas</title>
+    
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'css/body.css' %}">
+    <link rel="stylesheet" href="{% static 'css/estilos.css' %}">
+
+    <style>
+        body {
+            background-color: #585252;
+            color: #fff;
+        }
+        input, select, textarea {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            border: 1px solid #555 !important;
+        }
+        #projector {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            background: transparent;
+        }
+    </style>
+</head>
+
+<body class="cars">
+<canvas id="projector"></canvas>
+
+<!-- NAVBAR -->
+{% block navbar %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="#">
+            <img src="{% static 'img/hot_wheels.png' %}" alt="Logo" width="90" height="60">
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'index' %}">Inicio</a>
+                </li>
+
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        Cliente
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'consultar_cliente' %}">Consultar Cliente</a></li>
+                        <li><a class="dropdown-item" href="{% url 'crear_cliente' %}">Crear Cliente</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        Libro
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'crear_producto' %}">Crear Libro</a></li>
+                        <li><a class="dropdown-item" href="{% url 'consultar_producto' %}">Consultar Libro</a></li>
+                    </ul>
+                </li>
+
+                
+
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        Descuento
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'consultar_descuento' %}">Consultar Descuento</a></li>
+                        <li><a class="dropdown-item" href="{% url 'crear_descuento' %}">Crear Descuento</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        Proveedor
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'consultar_proveedor' %}">Consultar Proveedor</a></li>
+                        <li><a class="dropdown-item" href="{% url 'crear_proveedor' %}">Crear Proveedor</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        Bodega
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'consultar_bodega' %}">Consultar Bodega</a></li>
+                        <li><a class="dropdown-item" href="{% url 'crear_bodega' %}">Crear Bodega</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        Factura
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'consultar_factura' %}">Consultar Factura</a></li>
+                        <li><a class="dropdown-item" href="{% url 'crear_factura' %}">Crear Factura</a></li>
+                    </ul>
+                </li>
+            </ul>
+
+            <form class="d-flex">
+                <input class="form-control me-2 bg-dark text-light" type="search" placeholder="Buscar">
+                <button class="btn btn-outline-success" type="submit">Consultar</button>
+            </form>
+        </div>
+    </div>
+</nav>
+{% endblock %}
+
+<!-- CONTENIDO PRINCIPAL -->
+{% block main %}
+<style>
+  .form-container {
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  form .form-control {
+    width: 100%;
+    background-color: #fffdfd;
+    color: #fff;
+    border: 1px solid #555;
+  }
+
+  label.form-label {
+    color: #000000;
+  }
+
+  .card {
+    background-color: #ffffff;
+    color: #060606;
+  }
+</style>
+<h1 class="text-center my-4">Bienvenido al sistema web</h1>
+
+<div class="container">
+    <div class="row text-center">
+
+        <div class="col mio-div-grid">
+            Hotwheels
+            <img src="{% static 'img/hot_wheels.png' %}" alt="Hotwheels" width="100">
+            <div class="description-grid">
+                <p>125</p>
+            </div>
+        </div>
+
+        <div class="col mio-div-grid">
+            Clientes
+            <img src="{% static 'img/clientes.png' %}" alt="Clientes" width="100">
+            <div class="description-grid">
+                <p>125</p>
+            </div>
+        </div>
+
+        <div class="col mio-div-grid">
+            Empleados
+            <img src="{% static 'img/empleados.png' %}" alt="Empleados" width="100">
+            <div class="description-grid">
+                <p>125</p>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
+
+<!-- SCRIPTS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+<script src="{% static 'libs/createjs.min.js' %}"></script>
+<script src="{% static 'libs/TweenMax.min.js' %}"></script>
+<script src="{% static 'js/particulas.js' %}"></script>
+
+</body>
+</html>
+<script>
+    // Configuración del canvas para el fondo animado
+    const canvas = document.getElementById('projector');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Lógica de las partículas (puedes personalizarla según tus necesidades)
+    function drawParticles() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Aquí iría la lógica para dibujar las partículas
+        requestAnimationFrame(drawParticles);
+    }
+
+    drawParticles();

@@ -1,0 +1,15 @@
+{% extends 'index.html' %}
+
+{% block content %}
+
+    <h1> Eliminar Cliente</h1>
+
+    <form method="post">
+    {% csrf_token %}
+    {{ form }}
+    
+    <input type="submit" value="Eliminar Cliente"/>
+    <input type="submit" value="cancelar" class="btn btn-outline-danger">
+    </form>
+{% endblock  %}
+

@@ -1,0 +1,40 @@
+{% extends 'index.html' %}
+
+{% block main %}
+<h2 class="text-center mb-4"><b>Consultar Empleado</b></h2>
+<div class="tables-container">
+  <form method="get" action="{% url 'consulta_empleado' %}">
+
+    <table class="table">
+      <thead class="table-primary">
+        <tr>
+          <th scope="col">Nombre</th>
+          <th scope="col">Apellido</th>
+          <th scope="col">Cedula</th>
+          <th scope="col">Cargo</th>
+          <th scope="col">Opcion 1</th>
+          <th scope="col">Opcion 2</th>
+
+            {% csrf_token %}
+            <th scope="col"><input type="text"></th>
+            <th scope="col"><button type="submit">Buscar</button></th>
+
+        </tr>
+      </thead>
+      <tbody>
+        {% for empleado in empleados %}
+        <tr>
+          <td>{{ empleado.nombre }}</td>
+          <td>{{ empleado.apellido }}</td>
+          <td>{{ empleado.cedula }}</td>
+          <td>{{ empleado.cargo }}</td>
+          <td><a href="{% url 'crear_empleado' %}">Modificar Empleado</a></td>
+          <td><a href="{% url 'crear_empleado' %}">Eliminar Empleado</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      </table>
+  
+  </form>
+</div>
+{% endblock %}

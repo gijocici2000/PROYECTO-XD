@@ -1,0 +1,35 @@
+{% extends 'index.html' %}
+
+{% block main %}
+    <div class="container-form">
+      <h2><b>modificar producto</b></h2>
+        
+          <form action="" method="post" class="Form"> 
+            {% csrf_token %}
+            {{ form }}
+            
+            <div>
+          
+                <div>
+    <div>
+            <div class="save-content">
+
+            <input type="submit"  value="Editar"class="btn btn-primary btn">
+
+            <input type="submit" value="cancelar" class="btn btn-outline-danger">
+          </div>
+          
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        </form>
+
+    
+    
+
+{% endblock %}
+    
+    
+

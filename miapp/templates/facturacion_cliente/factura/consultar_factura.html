@@ -1,0 +1,66 @@
+{% extends 'index.html' %}
+
+    
+
+
+{% block content %}
+<h2 class="text-center mb-4"><b>Consultar factura</b></h2>
+<form method="post"  >
+    {% csrf_token %}
+    {{ buscador_factura }}
+    <button type="submit" name="buscar_factura" value="Buscar factura" class="btn-primary">
+              <i class="fas fa-search"></i>
+        </button>
+   
+
+    <button type="submit" name="exportar_factura" value="Exportar Pdf" class="btn-primary">
+        <i class="fa-solid fa-file-pdf"> </i>
+    </button>
+</form>
+
+
+
+
+<div class="tables-container">
+  <table class="table">
+        <thead class="table-primary"> 
+        <tr>
+                
+                
+                <th scope="col">factura_codigo</th>
+                <th scope="col">cliente</th>
+                <th scope="col">contacto</th>
+                <th scope="col">email</th>
+                <th scope="col">comentario</th>
+                <th scope="col">Modificar</th>
+                <th scope="col">Eliminar</th>
+        </tr>
+        </thead>
+        <tbody>
+            {% for f in productos %}
+            <tr>
+              
+                        <td >{{f.factura_codigo}}</td>
+                        <td >{{f.cliente}}</td>
+                        <td >{{f.contacto}}</td>
+                        <td >{{f.email}}</td>
+                        <td >{{f.comentario}}</td>
+                       
+                            
+              <td>
+                <a href="{% url 'modificar_factura' f.id %}" class="btn btn-info btn-sm"> Modificar </a>
+            </td>
+            
+              <td>
+                <a href="{% url 'eliminar_factura' f.id %}" class="btn btn-outline-danger btn-sm" >Eliminar </a>
+                    
+                
+            </td>
+       <div>
+       
+            </div>
+      {% endfor %}
+    </tbody>
+  </table>
+
+{% endblock %}
