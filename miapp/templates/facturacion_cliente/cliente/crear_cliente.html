@@ -9,10 +9,9 @@
         
         {% csrf_token %}
 
-        <div class="mb-3">
-            {{ form.as_p }}
-        </div>
-
+       
+            {{ form_Cliente }}
+       
         <div class="d-flex justify-content-between mt-4">
             <button type="submit" class="btn btn-success">
                 <i class="fas fa-save"></i> Guardar Cliente

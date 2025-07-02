@@ -84,7 +84,6 @@ class Cliente(models.Model):
     apellido = models.CharField(max_length=20)
     cedula = models.CharField(max_length=12)
     correo = models.EmailField(max_length=40, default="@")
-    celular = models.CharField(max_length=12)
     telefono = models.CharField(max_length=12, blank=True, null=True)
     direccion = models.CharField(max_length=200, blank=True, null=True)
 
@@ -184,7 +183,7 @@ class Descuento(models.Model):
 # ---------------------------
 
 class Cotizacion(models.Model):
-    factura_codigo = models.AutoField(primary_key=True)
+    cotizacion_codigo = models.AutoField(primary_key=True)
     cliente = models.ForeignKey(Cliente, on_delete=models.RESTRICT)
     sucursal = models.ForeignKey(Sucursal, on_delete=models.RESTRICT)
     empleado = models.ForeignKey(Empleado, on_delete=models.RESTRICT, blank=True, null=True)

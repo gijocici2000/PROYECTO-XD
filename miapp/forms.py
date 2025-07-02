@@ -173,42 +173,43 @@ class DescuentoForm(forms.ModelForm):
 
 ##########################Cotización y Cotización Detalle#########################
 
-class CotizacionForm(forms.ModelForm):
+class CotizacionForm(forms.ModelForm): 
     class Meta:
-        model = Cotizacion
-        fields = [
-            'cotizacion_codigo',
-            'cliente',
-            'contacto',
-            'correo',
-            'comentario'
-        ]
+        model = Factura
+        fields = ['cliente', 'sucursal', 'empleado', 'comentario', 'descuento']
         widgets = {
-            'fecha_cotizacion': forms.DateInput(
-                format=('%Y-%m-%d'),
-                attrs={
-                    'placeholder': 'Seleccione una fecha',
-                    'type': 'date',
-                    'size': 30
-                }
-            ),
+            'comentario': forms.Textarea(attrs={'rows': 2}),
         }
+        labels = {
+            'cliente': 'Cliente:',
+            'sucursal': 'Sucursal:',
+            'empleado': 'Empleado:',
+            'comentario': 'Comentario:',
+            'descuento': 'Descuento:',
+        }
+
 class CotizacionDetalleForm(forms.ModelForm):
-    class Meta:
+     class Meta:
         model = Cotizacion_Detalle
         fields = ['producto', 'cantidad']
         widgets = {
-            'producto': forms.Select(attrs={
-                'class': 'form-control',
-                'id': 'cotizacion_detalle_producto',
-            }),
-            'cantidad': forms.TextInput(attrs={
-                'class': 'form-control',
-                'id': 'cotizacion_detalle_cantidad',
-                'placeholder': '0',
-                'type': 'number',
-            }),
-        }   
+            'producto': forms.Select(attrs={'class': 'form-control'}),
+            'cantidad': forms.TextInput(attrs={'class': 'form-control', 'type': 'number'}),
+        }
+        labels = {
+            'producto': 'Producto:',
+            'cantidad': 'Cantidad:',
+        }
+
+
+# Formset para manejar múltiples líneas de detalle de factura
+Cotizacion_DetalleFormSet = modelformset_factory(
+    Cotizacion_Detalle,
+    form=CotizacionDetalleForm,
+    extra=1,       # Número de líneas vacías al iniciar
+    can_delete=True  # Permite eliminar líneas si estás en modo edición
+)
+
 class CotizacionDetalleFormSet(forms.BaseFormSet):
     def clean(self):
         super().clean()
