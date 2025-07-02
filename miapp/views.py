@@ -478,67 +478,39 @@ def modificar_cotizacion_detalle(request: HttpRequest, id: int) -> HttpResponse:
 
 
 ######################################## Facturación Cliente ########################################
+from django.shortcuts import render
+from .models import Factura, FacturaDetalle
+from .forms import FacturaForm, FacturaDetalleFormSet
 
 def crear_factura(request):
-    if request.method == "POST":
-        form = FacturaForm(request.POST)
-        formset = FacturaDetalleFormSet(request.POST, queryset=Factura_Detalle.objects.none())
-
-        if form.is_valid() and formset.is_valid():
-            try:
-                with transaction.atomic():
-                    factura = form.save(commit=False)
-                    factura.subtotal = Decimal('0.00')
-                    factura.total = Decimal('0.00')
-                    factura.iva = Decimal('0.00')
-                    factura.cantidad_productos = 0
-                    factura.creacion_usuario = request.user.username
-                    factura.modificacion_usuario = request.user.username
-                    factura.save()
-
-                    subtotal = Decimal('0.00')
-                    cantidad_total = 0
-
-                    for detalle_form in formset:
-                        producto = detalle_form.cleaned_data.get("producto")
-                        cantidad = detalle_form.cleaned_data.get("cantidad")
-
-                        if producto and cantidad:
-                            subtotal_detalle = producto.precio * cantidad
-                            subtotal += subtotal_detalle
-                            cantidad_total += cantidad
-
-                            Factura_Detalle.objects.create(
-                                factura=factura,
-                                producto=producto,
-                                cantidad=cantidad,
-                                subtotal=subtotal_detalle
-                            )
-
-                    factura.subtotal = subtotal
-                    factura.cantidad_productos = cantidad_total
-
-                    # Descuento
-                    descuento = factura.descuento.valor if factura.descuento else Decimal('0.00')
-                    subtotal_con_descuento = subtotal - descuento
-
-                    # IVA (Ejemplo 12%)
-                    iva = subtotal_con_descuento * Decimal('0.12')
-                    factura.iva = iva
-                    factura.total = subtotal_con_descuento + iva
-                    factura.save()
-
-                return redirect("consultar_factura")
-
-            except Exception as e:
-                print(f"Error al guardar la factura: {e}")
+    if request.method == 'POST':
+        factura_form = FacturaForm(request.POST)
+        formset = FacturaDetalleFormSet(request.POST)
+        
+        if factura_form.is_valid() and formset.is_valid():
+            factura = factura_form.save()
+            detalles = formset.save(commit=False)
+            for detalle in detalles:
+                detalle.factura = factura
+                detalle.save()
+            
+            # Obtener los detalles de la factura para mostrar
+            factura_detalle = FacturaDetalle.objects.filter(factura=factura)
+            return render(request, 'miapp/templates/facturacion_cliente/factura/crear_factura.html', {
+                'factura': factura,
+                'factura_detalle': factura_detalle,
+                'facturaform': factura_form,
+                'formset': formset,
+            })
 
     else:
-        form = FacturaForm()
-        formset = FacturaDetalleFormSet(queryset=Factura_Detalle.objects.none())
+        factura_form = FacturaForm()
+        formset = FacturaDetalleFormSet()
 
-    return render(request, "facturacion_cliente/factura/crear_factura.html", {"form": form, "formset": formset})
-
+    return render(request, 'miapp/templates/facturacion_cliente/factura/crear_factura.html', {
+        'facturaform': factura_form,
+        'formset': formset,
+    })
 
 def consultar_factura(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
