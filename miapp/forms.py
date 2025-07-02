@@ -61,8 +61,8 @@ class ProductoForm(forms.ModelForm):
             'modelo': forms.TextInput(attrs={'class': 'form-control'}),
             'color': forms.TextInput(attrs={'class': 'form-control'}),
             'numero_serie': forms.TextInput(attrs={'class': 'form-control'}),
-            'categoria': forms.Select(attrs={'class': 'form-control'}),
-            'unidad': forms.Select(attrs={'class': 'form-control'}),
+            'categoria': forms.TextInput(attrs={'class': 'form-control'}),
+            'unidad': forms.TextInput(attrs={'class': 'form-control'}),
             'precio': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
         }
         labels = {
@@ -71,7 +71,7 @@ class ProductoForm(forms.ModelForm):
             'color': 'Color:',
             'numero_serie': 'Número de serie:',
             'categoria': 'Categoría:',
-            'unidad': 'Unidad de medida:',
+            'unidad': 'Unidades:',
             'precio': 'Precio unitario:',
         }
 
@@ -247,9 +247,8 @@ class BuscarProveedorForm(forms.Form):
     )
 
 class BuscarDescuentoForm(forms.Form):
-    codigo = forms.CharField(max_length=50, required=False)
-    descripcion = forms.CharField(max_length=100, required=False)
-    porcentaje = forms.DecimalField(max_digits=5, decimal_places=2, required=False)
+    producto = forms.CharField(max_length=50, required=False)
+    descuento = forms.DecimalField(max_digits=5, decimal_places=2, required=False)
     fecha = forms.DateTimeField(
         required=False,
         widget=forms.DateInput(

@@ -1,40 +1,77 @@
 {% extends 'index.html' %}
 
-
-
-
 {% block main %}
-<h2 class="text-center mb-4">Consultar Descuento</h2>
-<div class="tables-container">
-  <table class="table">
-    <thead class="table-primary"> 
-      <tr>
-        <th scope="col">#</th>
-        <th scope="col">First</th>
-        <th scope="col">Last</th>
-        <th scope="col">Handle</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <th scope="row">1</th>
-        <td>Mark</td>
-        <td>Otto</td>
-        <td>@mdo</td>
-      </tr>
-      <tr>
-        <th scope="row">2</th>
-        <td>Jacob</td>
-        <td>Thornton</td>
-        <td>@fat</td>
-      </tr>
-      <tr>
-        <th scope="row">3</th>
-        <td>Larry the Bird</td>
-        <td>Mell</td>
-        <td>@twitter</td>
-      </tr>
-    </tbody>
-  </table>
+
+<div class="container mt-4">
+    <h2 class="text-center mb-4 text-primary"><b>Consultar Descuento</b></h2>
+
+    <!-- Formulario de búsqueda -->
+    <form method="post" class="mb-4">
+        {% csrf_token %}
+        <div class="row g-2 align-items-end">
+            
+            <div class="col-md-4">{{ buscador_Descuento.producto.label_tag }} {{ buscador_Descuento.producto }} </div>
+            
+            <div class="col-md-4">{{ buscador_Descuento.descuento.label_tag }} {{ buscador_Descuento.descuento }}</div>
+            
+            <div class="col-md-2">
+                <button type="submit" name="buscar_descuento" value="Buscar descuento" class="btn btn-primary w-100 mb-2">
+                    <i class="fas fa-search"></i> Buscar
+                </button>
+            </div>
+            
+            <div class="col-md-2">
+                <button type="submit" name="exportar_descuento" value="Exportar Pdf" class="btn btn-danger w-100 mb-2">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Tabla de resultados -->
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+            <thead class="table-primary text-center">
+                <tr>
+                    <th>Producto</th>
+                    <th>Descripción</th>
+                    <th>Descuento (%)</th>
+                    <th>Fecha Inicio</th>
+                    <th>Fecha Final</th>
+                    <th>Modificar</th>
+                    <th>Eliminar</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if descuentos %}
+                    {% for d in descuentos %}
+                    <tr>
+                        <td>{{ d.producto }}</td>
+                        <td>{{ d.descripcion }}</td>
+                        <td>{{ d.descuento }}</td>
+                        <td>{{ d.fecha_inicio }}</td>
+                        <td>{{ d.fecha_final }}</td>
+                        <td class="text-center">
+                            <a href="{% url 'modificar_descuento' d.id %}" class="btn btn-info btn-sm">
+                                <i class="fas fa-edit"></i> Modificar
+                            </a>
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'eliminar_descuento' d.id %}" class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Estás seguro de eliminar este descuento?')">
+                                <i class="fas fa-trash-alt"></i> Eliminar
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center">No hay descuentos registrados.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
 </div>
+
 {% endblock %}

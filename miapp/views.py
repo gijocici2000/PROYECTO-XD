@@ -199,14 +199,16 @@ def eliminar_producto(request: HttpRequest, id: int) -> HttpResponse:
 
 def crear_descuento(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
-        form = DescuentoForm(request.POST)
+        form = DescuentoForm(data=request.POST, files=request.FILES)
         if form.is_valid():
             form.save()
             return redirect("consultar_descuento")
     else:
         form = DescuentoForm()
-    context = {"form_Descuento": form, "edit_mode": False}
-    return render(request, "facturacion_cliente/descuento/crear_descuento.html")
+    
+    context = {"form": form, "edit_mode": False}  # Aquí debe ser "form", no "form_Descuento"
+    return render(request, "facturacion_cliente/descuento/crear_descuento.html", context)
+
 
 def consultar_descuento(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
@@ -282,8 +284,7 @@ def modificar_descuento(request: HttpRequest, id: int) -> HttpResponse:
     else:
         form = DescuentoForm(instance=descuento)
     context = {"form": form, "descuento": descuento, "edit_mode": True}
-    return render(request, "facturacion_cliente/descuento/modificar_descuento.html")
-
+    return render(request, "facturacion_cliente/descuento/modificar_descuento.html", context)
 
 
 def eliminar_descuento(request: HttpRequest, id: int) -> HttpResponse:
@@ -291,7 +292,6 @@ def eliminar_descuento(request: HttpRequest, id: int) -> HttpResponse:
     if request.method == "POST":
         descuento.delete()
         return redirect("consultar_descuento")
-    context = {"descuento": descuento}
     return render(request, "facturacion_cliente/descuento/eliminar_descuento.html")
 
 
@@ -652,7 +652,7 @@ def crear_proveedor(request: HttpRequest) -> HttpResponse:
     else:
         form = ProveedorForm()
     context = {"form_Proveedor": form, "edit_mode": False}
-    return render(request, "facturacion_cliente/proveedor/crear_proveedor.html", context)
+    return render(request, "administrativo/proveedor/crear_proveedor.html", context)
 
 def consultar_proveedor(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
@@ -669,14 +669,14 @@ def consultar_proveedor(request: HttpRequest) -> HttpResponse:
                     Q(fecha_creacion__lte=fecha) if fecha else Q(),
                 )
                 context = {'buscador_Proveedor': buscarProveedorForm, 'proveedores': proveedores}
-                return render(request, "facturacion_cliente/proveedor/consultar_proveedor.html", context)
+                return render(request, "administrativo/proveedor/consultar_proveedor.html", context)
 
         elif 'exportar_proveedor' in request.POST:
             return exportar_pdf_proveedor(request)
         
     buscarProveedorForm = BuscarProveedorForm()
     proveedores = None
-    return render(request, "facturacion_cliente/proveedor/consultar_proveedor.html", {'buscador_Proveedor': buscarProveedorForm, 'proveedores': proveedores})
+    return render(request, "administrativo/proveedor/consultar_proveedor.html", {'buscador_Proveedor': buscarProveedorForm, 'proveedores': proveedores})
 
 
         
@@ -739,7 +739,7 @@ def modificar_proveedor(request: HttpRequest, id: int) -> HttpResponse:
     else:
         form = ProveedorForm(instance=proveedor)
     context = {"form": form, "proveedor": proveedor, "edit_mode": True}
-    return render(request, "facturacion_cliente/proveedor/modificar_proveedor.html", context)
+    return render(request, "administrativo/proveedor/modificar_proveedor.html", context)
 
 
 def eliminar_proveedor(request: HttpRequest, id: int) -> HttpResponse:
@@ -747,7 +747,7 @@ def eliminar_proveedor(request: HttpRequest, id: int) -> HttpResponse:
     if request.method == "POST":
         proveedor.delete()
         return redirect("consultar_proveedor")
-    return render(request, "facturacion_cliente/proveedor/eliminar_proveedor.html", {"proveedor": proveedor})
+    return render(request, "administrativo/proveedor/eliminar_proveedor.html", {"proveedor": proveedor})
 
 
 
