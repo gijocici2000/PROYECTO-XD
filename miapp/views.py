@@ -15,7 +15,7 @@ from django.db import transaction
 from decimal import Decimal
 from .models import Factura
 from .forms import FacturaForm, FacturaDetalleFormSet
-
+from django.forms import inlineformset_factory
 
 
 def index(request):
@@ -480,64 +480,68 @@ def modificar_cotizacion_detalle(request: HttpRequest, id: int) -> HttpResponse:
 ######################################## Facturación Cliente ########################################
 
 def crear_factura(request):
-    if request.method == "POST":
+    if request.method == 'POST':
         form = FacturaForm(request.POST)
         formset = FacturaDetalleFormSet(request.POST, queryset=Factura_Detalle.objects.none())
 
         if form.is_valid() and formset.is_valid():
-            try:
-                with transaction.atomic():
-                    factura = form.save(commit=False)
-                    factura.subtotal = Decimal('0.00')
-                    factura.total = Decimal('0.00')
-                    factura.iva = Decimal('0.00')
-                    factura.cantidad_productos = 0
-                    factura.creacion_usuario = request.user.username
-                    factura.modificacion_usuario = request.user.username
-                    factura.save()
+            factura = form.save(commit=False)
+            factura.creacion_usuario = request.user.username
+            factura.fecha_emision = timezone.now()
+            factura.subtotal = Decimal('0.00')
+            factura.descuento_total = Decimal('0.00')
+            factura.total = Decimal('0.00')
+            factura.cantidad_productos = 0
+            factura.save()  # Aquí se genera el numero_factura automático
 
-                    subtotal = Decimal('0.00')
-                    cantidad_total = 0
+            subtotal_general = Decimal('0.00')
+            total_descuento = Decimal('0.00')
+            cantidad_productos = 0
 
-                    for detalle_form in formset:
-                        producto = detalle_form.cleaned_data.get("producto")
-                        cantidad = detalle_form.cleaned_data.get("cantidad")
+            for detalle_form in formset:
+                if detalle_form.cleaned_data:
+                    producto = detalle_form.cleaned_data['producto']
+                    cantidad = detalle_form.cleaned_data['cantidad']
 
-                        if producto and cantidad:
-                            subtotal_detalle = producto.precio * cantidad
-                            subtotal += subtotal_detalle
-                            cantidad_total += cantidad
+                    precio_unitario = Decimal(producto.precio)
+                    descuento_unitario = precio_unitario * Decimal('0.10')  # Descuento automático fijo 10%
+                    precio_final = precio_unitario - descuento_unitario
 
-                            Factura_Detalle.objects.create(
-                                factura=factura,
-                                producto=producto,
-                                cantidad=cantidad,
-                                subtotal=subtotal_detalle
-                            )
+                    subtotal = precio_final * cantidad
 
-                    factura.subtotal = subtotal
-                    factura.cantidad_productos = cantidad_total
+                    Factura_Detalle.objects.create(
+                        factura=factura,
+                        producto=producto,
+                        cantidad=cantidad,
+                        subtotal=subtotal,
+                        creacion_usuario=request.user.username
+                    )
 
-                    # Descuento
-                    descuento = factura.descuento.valor if factura.descuento else Decimal('0.00')
-                    subtotal_con_descuento = subtotal - descuento
+                    subtotal_general += precio_unitario * cantidad
+                    total_descuento += descuento_unitario * cantidad
+                    cantidad_productos += cantidad
 
-                    # IVA (Ejemplo 12%)
-                    iva = subtotal_con_descuento * Decimal('0.12')
-                    factura.iva = iva
-                    factura.total = subtotal_con_descuento + iva
-                    factura.save()
+            iva = (subtotal_general - total_descuento) * Decimal('0.12')  # IVA del 12%
+            total_final = (subtotal_general - total_descuento) + iva
 
-                return redirect("consultar_factura")
+            # Actualizar la factura con los totales calculados
+            factura.subtotal = subtotal_general
+            factura.descuento_total = total_descuento
+            factura.iva = iva
+            factura.total = total_final
+            factura.cantidad_productos = cantidad_productos
+            factura.save()
 
-            except Exception as e:
-                print(f"Error al guardar la factura: {e}")
+            return redirect('ver_factura', factura_id=factura.factura_codigo)
 
     else:
         form = FacturaForm()
         formset = FacturaDetalleFormSet(queryset=Factura_Detalle.objects.none())
 
-    return render(request, "facturacion_cliente/factura/crear_factura.html", {"form": form, "formset": formset})
+    return render(request, 'facturacion_cliente/factura/crear_factura.html', {
+        'form': form,
+        'formset': formset
+    })
 
 
 def consultar_factura(request: HttpRequest) -> HttpResponse:
@@ -566,7 +570,7 @@ def consultar_factura(request: HttpRequest) -> HttpResponse:
     return render(request, "facturacion_cliente/factura/consultar_factura.html", {'buscador_factura': buscarFacturaForm, 'facturas': facturas})    
 
 def modificar_factura(request: HttpRequest, id: int) -> HttpResponse:
-    factura = get_object_or_404(Factura, id=id)
+    factura = get_object_or_404(Factura, factura_codigo=id)
     facturaForm = FacturaForm(request.POST or None, instance=factura)
     if request.method == "POST" and facturaForm.is_valid():
         facturaForm.save()
@@ -574,7 +578,7 @@ def modificar_factura(request: HttpRequest, id: int) -> HttpResponse:
     return render(request, "facturacion_cliente/factura/modificar_factura.html", {'facturaform': facturaForm})
 
 def eliminar_factura(request, id):
-    factura = get_object_or_404(Factura, id=id)
+    factura = get_object_or_404(Factura, factura_codigo=id)
     if request.method == "POST":
         factura.estado = 0
         factura.save()

@@ -1,41 +1,26 @@
-{% extends 'index.html' %}
+ {% extends 'index.html' %}
+
 {% block main %}
-    <div class="container-form">
-      <h2>Agregar Proveedor</h2>
-        <form class="form" method="post">
-          <label for="nombre">Nombre</label>
-          <input type="text" name="" id="">
-          <label for="nombre">Modelo</label>
-          <input type="text" name="" id="">
-          <label for="nombre">Color</label>
-          <input type="text" name="" id="">
-          <label for="nombre">Numero de Serie</label>
-          <input type="text" name="" id="">
-          <label for="nombre">Tipo de producto</label>
-          <input type="text" name="" id="">
-        </form>
-      <div class="save-content">
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#staticBackdrop">
-          Guardar
-        </button>
-        <input type="submit" value="cancelar" class="btn btn-outline-danger">
-      </div>
-      <!-- Modal -->
-      <div class="modal fade" id="staticBackdrop" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
-        <div class="modal-dialog">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="staticBackdropLabel">¿Seguro que desea guardar ?</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="container mt-4 text-light"></div>
+
+  <h2 class="text-center mb-4 text-primary"><b>Agregar Producto</b></h2>
+        
+        
+          <form method="post" action="{% url 'crear_producto' %}" class="w-25 mx-auto p-4 rounded" style="background-color: #308a9e; border: 1px solid #333;">
+            {% csrf_token %}
+
+              <div class="mb-3">
+                  {{ form_Proveedor }}
+              </div>  
+
+            <div class="d-flex justify-content-between mt-4">
+              <button type="submit" class="btn btn-success px-4">Guardar</button>
+              <a href="{% url 'consultar_proveedor' %}" class="btn btn-outline-danger px-4">Cancelar</a>
             </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-              <button type="button" class="btn btn-primary">Understood</button>
-            </div>
-          </div>
+          </form>
         </div>
       </div>
     </div>
-
+  </div>
+</div>
 {% endblock %}
-

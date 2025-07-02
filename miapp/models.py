@@ -231,16 +231,30 @@ class Cotizacion_Detalle(models.Model):
 
 class Factura(models.Model):
     factura_codigo = models.AutoField(primary_key=True)
+    numero_factura = models.CharField(max_length=20, unique=True, blank=True, null=True)
+    
     cliente = models.ForeignKey(Cliente, on_delete=models.RESTRICT)
     sucursal = models.ForeignKey(Sucursal, on_delete=models.RESTRICT)
     empleado = models.ForeignKey(Empleado, on_delete=models.RESTRICT, blank=True, null=True)
 
+    tipo_pago = models.CharField(max_length=20, choices=[
+        ('contado', 'Contado'),
+        ('credito', 'Crédito'),
+        ('transferencia', 'Transferencia Bancaria'),
+    ], default='contado')
+
+    fecha_emision = models.DateTimeField(default=timezone.now)
+    fecha_vencimiento = models.DateTimeField(blank=True, null=True)
+    
     comentario = models.TextField(blank=True, null=True)
     cantidad_productos = models.PositiveIntegerField(default=0)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
-    descuento = models.ForeignKey(Descuento, on_delete=models.SET_NULL, blank=True, null=True)
+    descuento_total = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     iva = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     total = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+
+    anulada = models.BooleanField(default=False)
+    motivo_anulacion = models.TextField(blank=True, null=True)
 
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_modificacion = models.DateTimeField(auto_now=True)
@@ -253,7 +267,18 @@ class Factura(models.Model):
         ordering = ["-fecha_creacion"]
 
     def __str__(self):
-        return f"Factura #{self.factura_codigo} - {self.cliente}"
+        return f"Factura {self.numero_factura or self.factura_codigo} - {self.cliente}"
+
+    # AQUÍ va el método save:
+    def save(self, *args, **kwargs):
+        if not self.numero_factura:
+            ultimo_id = Factura.objects.all().order_by('-factura_codigo').first()
+            siguiente = (ultimo_id.factura_codigo if ultimo_id else 0) + 1
+            self.numero_factura = f"F-{timezone.now().year}-{siguiente:05d}"
+        super().save(*args, **kwargs)
+
+   
+
 
 
 class Factura_Detalle(models.Model):
@@ -269,6 +294,19 @@ class Factura_Detalle(models.Model):
     modificacion_usuario = models.CharField(max_length=50)
     estado = models.IntegerField(default=1)
 
+    @property
+    def precio(self):
+        # Retorna el precio del producto relacionado
+        return self.producto.precio
+
+    @property
+    def descuento(self):
+        # Por ejemplo, descuento fijo de 10%
+        return Decimal(str(self.precio)) * Decimal('0.10')
+
+    @property
+    def precio_final(self):
+        return (Decimal(str(self.precio)) - self.descuento) * self.cantidad
 
     class Meta:
         db_table = "factura_detalle"

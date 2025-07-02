@@ -1,73 +1,56 @@
 {% extends "index.html" %}
 
-
 {% block main %}
+<div class="container my-4">
+    <h2 class="mb-4 text-center">Crear Nueva Factura</h2>
 
-<div class="container-form">
-   <h2><b>Crear Factura</b></h2> <!-- Area Chart -->
-    
-           
-            <div class="card-body">
-                <form method="post" action="{% url 'crear_factura' %}"class="Form">
-                    {% csrf_token %}
-                    {{ facturaform }}
+    <form method="post" novalidate>
+        {% csrf_token %}
 
-                   
-                        
-                      {{ formset.management_form }}
-                    {% for form in formset %}  
-                    <div class="table">
-                       
-                    <table class="table">
-                         
-                            <tr>
-                                <td style="border: 0; padding: 0 0.5em 0 0; width: 80%">
-                                    <label class="form-label" for="factura_detalle_producto">Producto</label>
-                                    {{form.producto}}
-                                </td>
-                                
-                                <td style="border: 0; padding: 0Enviar 0 0 0.5em;">
-                                    <label class="form-label" for="factura_detalle_cantidad">cantidad</label>
-                                    {{form.cantidad}}
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
-                    {% endfor %}
-                    <div class="save-content">
-             <input class="btn btn-outline-warning add-form-row" style="margin: 0 1em 0 1em; width: 40%"
-                            type="button" value="añadir producto" id="add_more">
-            <input type="submit" class="btn btn-primary" value="Guardar factura">
-                    </div>
-                </form>
-            </div>
+        <div class="card p-4 mb-4">
+            <h4>Datos de Factura</h4>
+            {{ form.non_field_errors }}
+            {% for field in form %}
+                <div class="mb-3">
+                    <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}
+                        <div class="text-danger small">{{ field.errors|striptags }}</div>
+                    {% endif %}
+                </div>
+            {% endfor %}
         </div>
-    </div>
+
+        <div class="card p-4 mb-4">
+            <h4>Detalles de Productos</h4>
+            {{ formset.management_form }}
+            <table class="table table-bordered align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad</th>
+                        <th>Subtotal</th>
+                        <th>Eliminar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for detalle_form in formset.forms %}
+                    <tr>
+                        <td>{{ detalle_form.producto }}</td>
+                        <td>{{ detalle_form.cantidad }}</td>
+                        <td>{{ detalle_form.subtotal }}</td>
+                        <td>
+                            {% if detalle_form.instance.pk %}
+                                {{ detalle_form.DELETE }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100">Guardar Factura</button>
+    </form>
 </div>
-
-{% endblock %}
-
-{% block custom_js %}
-<script>
-    function cloneMore(selector, type) {
-        var newElement = $(selector).clone(true);
-        var total = $('#id_' + type + '-TOTAL_FORMS').val();
-        newElement.find(':input').each(function () {
-            var name = $(this).attr('name').replace('-' + (total - 1) + '-', '-' + total + '-');
-            var id = 'id_' + name;
-            $(this).attr({ 'name': name, 'id': id }).val('').removeAttr('checked');
-        });
-        newElement.find('label').each(function () {
-            var newFor = $(this).attr('for').replace('-' + (total - 1) + '-', '-' + total + '-');
-            $(this).attr('for', newFor);
-        });
-        total++;
-        $('#id_' + type + '-TOTAL_FORMS').val(total);
-        $(selector).after(newElement);
-    }
-
-    $('#add_more').click(function () {
-        cloneMore('div.table:last', 'formset');
-    });
-</script>
 {% endblock %}

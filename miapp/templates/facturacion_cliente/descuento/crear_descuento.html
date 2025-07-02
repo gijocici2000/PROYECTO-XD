@@ -1,11 +1,11 @@
 {% extends 'index.html' %}
 
 {% block main %}
-<div class="container mt-4">
+<div class="container mt-4 text-light">
     
     <h2 class="text-center mb-4 text-primary"><b>Agregar Descuento</b></h2>
 
-    <form method="post">
+    <form method="post"class="w-25 mx-auto p-4 rounded" style="background-color: #308a9e; border: 1px solid #333;">
         {% csrf_token %}
         
         <div class="mb-3">

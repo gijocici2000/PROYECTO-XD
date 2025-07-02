@@ -13,6 +13,6 @@ admin.site.register(Cotizacion)
 admin.site.register(Cotizacion_Detalle)
 admin.site.register(Factura)
 admin.site.register(Factura_Detalle)
-
+admin.site.register(Cargo)
 admin.site.register(Proveedor)
 

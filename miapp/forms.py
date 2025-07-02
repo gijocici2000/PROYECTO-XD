@@ -82,19 +82,32 @@ class ProductoForm(forms.ModelForm):
 
 
 class FacturaForm(forms.ModelForm):
-    
     class Meta:
         model = Factura
-        fields = ['cliente', 'sucursal', 'empleado', 'comentario', 'descuento']
+        fields = [
+            "cliente",
+            "sucursal",
+            "empleado",
+            "tipo_pago",
+            "fecha_emision",
+            "fecha_vencimiento",
+            "comentario",
+            "cantidad_productos",
+            "subtotal",
+            "descuento_total",
+            "iva",
+            "total",
+            "anulada",
+            "motivo_anulacion",
+            "creacion_usuario",
+            "modificacion_usuario",
+            "estado",
+        ]
         widgets = {
-            'comentario': forms.Textarea(attrs={'rows': 2}),
-        }
-        labels = {
-            'cliente': 'Cliente:',
-            'sucursal': 'Sucursal:',
-            'empleado': 'Empleado:',
-            'comentario': 'Comentario:',
-            'descuento': 'Descuento:',
+            "fecha_emision": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "fecha_vencimiento": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "comentario": forms.Textarea(attrs={"rows": 3}),
+            "motivo_anulacion": forms.Textarea(attrs={"rows": 3}),
         }
 
 
@@ -102,16 +115,14 @@ class FacturaForm(forms.ModelForm):
 class FacturaDetalleForm(forms.ModelForm):
     class Meta:
         model = Factura_Detalle
-        fields = ['producto', 'cantidad']
-        widgets = {
-            'producto': forms.Select(attrs={'class': 'form-control'}),
-            'cantidad': forms.TextInput(attrs={'class': 'form-control', 'type': 'number'}),
-        }
-        labels = {
-            'producto': 'Producto:',
-            'cantidad': 'Cantidad:',
-        }
-
+        fields = [
+            "producto",
+            "cantidad",
+            "subtotal",  # Opcional si quieres calcularlo automáticamente
+            "creacion_usuario",
+            "modificacion_usuario",
+            "estado",
+        ]
 
 # Formset para manejar múltiples líneas de detalle de factura
 FacturaDetalleFormSet = modelformset_factory(
@@ -176,7 +187,7 @@ class DescuentoForm(forms.ModelForm):
 class CotizacionForm(forms.ModelForm): 
     class Meta:
         model = Factura
-        fields = ['cliente', 'sucursal', 'empleado', 'comentario', 'descuento']
+        fields = ['cliente', 'sucursal', 'empleado', 'comentario']
         widgets = {
             'comentario': forms.Textarea(attrs={'rows': 2}),
         }
@@ -185,7 +196,7 @@ class CotizacionForm(forms.ModelForm):
             'sucursal': 'Sucursal:',
             'empleado': 'Empleado:',
             'comentario': 'Comentario:',
-            'descuento': 'Descuento:',
+            
         }
 
 class CotizacionDetalleForm(forms.ModelForm):
