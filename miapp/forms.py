@@ -3,13 +3,15 @@ from .models import *
 from django.forms import modelformset_factory
 
 
+
 class EmpleadoForm(forms.ModelForm):
     class Meta:
         model = Empleado
-        fields = ['apellido', 'nombre', 'cedula', 'cargo']
+        fields = ['nombre','apellido', 'cedula', 'cargo']
+
         widgets = {
-            'apellido': forms.TextInput(attrs={'class': 'form-control'}),
             'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'apellido': forms.TextInput(attrs={'class': 'form-control'}),
             'cedula': forms.TextInput(attrs={'class': 'form-control'}),
             'cargo': forms.Select(attrs={'class': 'form-control'}),
         }
@@ -78,8 +80,6 @@ class ProductoForm(forms.ModelForm):
 #########################Factura y Factura Detalle#########################
 
 
-from django import forms
-from .models import Factura
 
 class FacturaForm(forms.ModelForm):
     
@@ -126,19 +126,6 @@ FacturaDetalleFormSet = modelformset_factory(
 
 ##########################Proveedor#########################
 
-class BuscarProveedorForm(forms.Form):
-    nombre = forms.CharField(max_length=50, required=False)
-    ruc = forms.CharField(max_length=15, required=False)
-    fecha = forms.DateTimeField(
-        required=False,
-        widget=forms.DateInput(
-            format=('%Y-%m-%d'),
-            attrs={
-                'placeholder': 'Seleccione la fecha de creación',
-                'type': 'date'
-            }
-        )
-    )
 
 class ProveedorForm(forms.ModelForm):
     class Meta:
@@ -167,22 +154,21 @@ class ProveedorForm(forms.ModelForm):
 class DescuentoForm(forms.ModelForm):
     class Meta:
         model = Descuento
-        fields = ['producto', 'descripcion', 'porcentaje',]
+        fields = ['producto', 'descripcion', 'descuento', 'fecha_inicio', 'fecha_final']
         widgets = {
-            'producto': forms.TextInput(attrs={'class': 'form-control'}),
+            'producto': forms.Select(attrs={'class': 'form-control'}),
             'descripcion': forms.TextInput(attrs={'class': 'form-control'}),
-            'porcentaje': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-            'fecha-inicio': forms.DateInput(attrs={'class': 'form-control'}),       
-            'fecha-final': forms.DateInput(attrs={'class': 'form-control'}), 
-        }                                     
+            'descuento': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'fecha_inicio': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'fecha_final': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+        }
         labels = {
-            'codigo_producto': 'Código_producto:',
+            'producto': 'Producto:',
             'descripcion': 'Descripción:',
-            'porcentaje': 'Porcentaje de descuento:',
-            'fecha_inicio':'fecha_incio',
-            'fecha_final':'fecha_final'
- 
-        }   
+            'descuento': 'Descuento:',
+            'fecha_inicio': 'Fecha de inicio:',
+            'fecha_final': 'Fecha final:',
+        } 
     
 
 ##########################Cotización y Cotización Detalle#########################
@@ -245,6 +231,20 @@ class CotizacionDetalleFormSet(forms.BaseFormSet):
 ###########################Buscar Formularios#########################
 
 
+class BuscarProveedorForm(forms.Form):
+    nombre = forms.CharField(max_length=50, required=False)
+    ruc = forms.CharField(max_length=15, required=False)
+    fecha = forms.DateTimeField(
+        required=False,
+        widget=forms.DateInput(
+            format=('%Y-%m-%d'),
+            attrs={
+                'placeholder': 'Seleccione la fecha de creación',
+                'type': 'date'
+            }
+        )
+    )
+
 class BuscarDescuentoForm(forms.Form):
     codigo = forms.CharField(max_length=50, required=False)
     descripcion = forms.CharField(max_length=100, required=False)
@@ -276,8 +276,6 @@ class BuscarEmpleadoForm(forms.Form):
     )
 
 class BuscarCotizacionForm(forms.Form):
-
-
     cliente_cedula = forms.CharField(max_length=50, required=False)
     desde = forms.DateTimeField(
         required=False,
@@ -389,4 +387,3 @@ class BuscarCotizacionDetalleForm(forms.Form):
             }
         )
     )
-

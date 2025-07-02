@@ -156,7 +156,7 @@ class Producto(models.Model):
 
 
 class Descuento(models.Model):
-    Producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     descripcion = models.CharField(max_length=255, blank=True, null=True)
     descuento = models.FloatField(default=0)
     fecha_inicio = models.DateTimeField(default=timezone.now)
