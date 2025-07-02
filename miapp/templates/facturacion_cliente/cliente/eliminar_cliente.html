@@ -2,14 +2,18 @@
 
 {% block content %}
 
-    <h1> Eliminar Cliente</h1>
+<h1>Eliminar Cliente</h1>
 
-    <form method="post">
+<p>¿Estás seguro que deseas eliminar este cliente?</p>
+
+<form method="post">
     {% csrf_token %}
     {{ form }}
     
-    <input type="submit" value="Eliminar Cliente"/>
-    <input type="submit" value="cancelar" class="btn btn-outline-danger">
-    </form>
-{% endblock  %}
+    <input type="submit" value="Eliminar Cliente" class="btn btn-danger"/>
+    
+    <a href="{% url 'listar_clientes' %}" class="btn btn-secondary">Cancelar</a>
+</form>
+
+{% endblock %}
 
