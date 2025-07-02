@@ -3,37 +3,21 @@ from django.utils import timezone
 from decimal import Decimal
 
 # ---------------------------administracion 
-# EMPRESA Y SUCURSAL
+# SUCURSAL
 # ---------------------------
 
-class Empresa(models.Model):
-    ruc = models.CharField(max_length=13)
-    nombre_comercial = models.CharField(max_length=30)
-    razon_social = models.CharField(max_length=40)
-    fecha_creacion = models.DateTimeField(auto_now_add=True ,)
-    fecha_modificacion = models.DateTimeField(auto_now=True , )
-    telefono = models.CharField(max_length=12)
-    creacion_usuario = models.CharField(max_length=50)
-    modificacion_usuario = models.CharField(max_length=50)
-    estado = models.IntegerField(default=1)
-
-    class Meta:
-        db_table = "empresa"
-        verbose_name = "empresa"
-        verbose_name_plural = "empresas"
-
-    def __str__(self):
-        return f'{self.ruc} {self.nombre_comercial} {self.razon_social}'
 
 
 class Sucursal(models.Model):
     nombre = models.CharField(max_length=30)
+    ruc= models.CharField(max_length=13, default="")
     local = models.CharField(max_length=50)
     telefono = models.CharField(max_length=12)
+    correo= models.EmailField(max_length=40, default="@")
     direccion = models.CharField(max_length=200)
+
     fecha_creacion = models.DateTimeField(auto_now_add=True , )
     fecha_modificacion = models.DateTimeField(auto_now=True , )
-    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE)
     creacion_usuario = models.CharField(max_length=50)
     modificacion_usuario = models.CharField(max_length=50)
     estado = models.IntegerField(default=1)
@@ -73,7 +57,8 @@ class Empleado(models.Model):
     nombre = models.CharField(max_length=20)
     apellido = models.CharField(max_length=20)
     cedula = models.CharField(max_length=12)
-    cargo = models.CharField(max_length=15) 
+    cargo = models.ForeignKey(Cargo, on_delete=models.CASCADE)
+    correo = models.EmailField(max_length=40, default="@") 
     telefono = models.CharField(max_length=12) 
     fecha_creacion = models.DateTimeField(auto_now_add=True , )
     fecha_modificacion = models.DateTimeField(auto_now=True , )
@@ -172,9 +157,10 @@ class Producto(models.Model):
 
 class Descuento(models.Model):
     Producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
-
     descripcion = models.CharField(max_length=255, blank=True, null=True)
     descuento = models.FloatField(default=0)
+    fecha_inicio = models.DateTimeField(default=timezone.now)
+    fecha_final = models.DateTimeField(default=timezone.now)
 
     fecha_creacion = models.DateTimeField(auto_now_add=True , )
     fecha_modificacion = models.DateTimeField(auto_now=True , )
@@ -191,47 +177,6 @@ class Descuento(models.Model):
         return f'{self.descuento} {self.fecha_inicio} {self.fecha_final}'
 
 
-# ---------------------------
-# BODEGA Y DETALLES
-# ---------------------------
-
-class Bodega(models.Model):
-    codigo_bodega = models.CharField(max_length=10, default="GEN")
-    estado = models.IntegerField(default=1)
-    nombre = models.CharField(max_length=30)
-
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
-    fecha_modificacion = models.DateTimeField(auto_now=True)
-    creacion_usuario = models.CharField(max_length=50, default="admin")
-    modificacion_usuario = models.CharField(max_length=50, default="admin")
-
-    class Meta:
-        db_table = "bodega"
-        verbose_name = "bodega"
-        verbose_name_plural = "bodegas"
-
-
-class Bodega_Detalle(models.Model):
-    relacion_bodega = models.ForeignKey(Bodega, on_delete=models.RESTRICT)
-    nombre = models.CharField(max_length=20)
-    modelo = models.CharField(max_length=40)
-    color = models.CharField(max_length=20)
-    numero_serie = models.CharField(max_length=20)
-    categoria = models.CharField(max_length=20)
-    tipo_producto = models.CharField(max_length=40)
-
-    fecha_creacion = models.DateTimeField(auto_now_add=True , )
-    precio = models.FloatField(default=0)
-    fecha_modificacion = models.DateTimeField(auto_now=True , )
-    cantidad = models.PositiveIntegerField(default=0)
-    creacion_usuario = models.CharField(max_length=50)
-    modificacion_usuario = models.CharField(max_length=50)
-    estado = models.IntegerField(default=1)
-
-    class Meta:
-        db_table = "bodega_detalle"
-        verbose_name = "bodega detalle"
-        verbose_name_plural = "bodega detalle"
 
 
 # ---------------------------

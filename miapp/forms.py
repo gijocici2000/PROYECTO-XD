@@ -167,45 +167,23 @@ class ProveedorForm(forms.ModelForm):
 class DescuentoForm(forms.ModelForm):
     class Meta:
         model = Descuento
-        fields = ['codigo_producto', 'descripcion', 'porcentaje']
+        fields = ['producto', 'descripcion', 'porcentaje',]
         widgets = {
-            'codigo_producto': forms.TextInput(attrs={'class': 'form-control'}),
+            'producto': forms.TextInput(attrs={'class': 'form-control'}),
             'descripcion': forms.TextInput(attrs={'class': 'form-control'}),
             'porcentaje': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-        }
+            'fecha-inicio': forms.DateInput(attrs={'class': 'form-control'}),       
+            'fecha-final': forms.DateInput(attrs={'class': 'form-control'}), 
+        }                                     
         labels = {
             'codigo_producto': 'Código_producto:',
             'descripcion': 'Descripción:',
             'porcentaje': 'Porcentaje de descuento:',
+            'fecha_inicio':'fecha_incio',
+            'fecha_final':'fecha_final'
+ 
         }   
     
-###########################Bodega y Bodega Detalle#########################
-class BodegaForm(forms.ModelForm):
-    class Meta:
-        model = Bodega
-        fields = ['nombre', 'direccion']
-        widgets = {
-            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
-            'direccion': forms.TextInput(attrs={'class': 'form-control'}),
-        }
-        labels = {
-            'nombre': 'Nombre :',
-            'direccion': 'Dirección:',
-        }
-class BodegaDetalleForm(forms.ModelForm):
-    class Meta:
-        model = Bodega_Detalle
-        fields = ['bodega', 'producto', 'cantidad']
-        widgets = {
-            'bodega': forms.Select(attrs={'class': 'form-control'}),
-            'producto': forms.Select(attrs={'class': 'form-control'}),
-            'cantidad': forms.TextInput(attrs={'class': 'form-control', 'type': 'number'}),
-        }
-        labels = {
-            'bodega': 'Bodega:',
-            'producto': 'Producto:',
-            'cantidad': 'Cantidad:',
-        }
 
 ##########################Cotización y Cotización Detalle#########################
 
@@ -363,42 +341,6 @@ class BuscarFacturaDetalleForm(forms.Form):
         )
     )   
 
-class BuscarBodegaDetalleForm(forms.Form):
-
-    bodega = forms.ModelChoiceField(
-        queryset=Bodega.objects.all(),
-        required=False,
-        widget=forms.Select(attrs={'class': 'form-control'})
-    )
-    producto = forms.ModelChoiceField(
-        queryset=Producto.objects.all(),
-        required=False,
-        widget=forms.Select(attrs={'class': 'form-control'})
-    )
-    fecha = forms.DateTimeField(
-        required=False,
-        widget=forms.DateInput(
-            format=('%Y-%m-%d'),
-            attrs={
-                'placeholder': 'Seleccione la fecha de creación',
-                'type': 'date'
-            }
-        )
-    )
-
-class BuscarBodegaForm(forms.Form):
-    nombre = forms.CharField(max_length=50, required=False)
-    direccion = forms.CharField(max_length=100, required=False)
-    fecha = forms.DateTimeField(
-        required=False,
-        widget=forms.DateInput(
-            format=('%Y-%m-%d'),
-            attrs={
-                'placeholder': 'Seleccione la fecha de creación',
-                'type': 'date'
-            }
-        )
-    )
 
 class BuscarClienteForm(forms.Form):
     nombre = forms.CharField(max_length=50, required=False)
@@ -429,3 +371,22 @@ class BuscarProductoForm(forms.Form):
             }
         )
     )
+
+class BuscarCotizacionDetalleForm(forms.Form):
+    cotizacion_codigo = forms.CharField(max_length=50, required=False)
+    producto = forms.ModelChoiceField(
+        queryset=Producto.objects.all(),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    fecha = forms.DateTimeField(
+        required=False,
+        widget=forms.DateInput(
+            format=('%Y-%m-%d'),
+            attrs={
+                'placeholder': 'Seleccione la fecha de creación',
+                'type': 'date'
+            }
+        )
+    )
+

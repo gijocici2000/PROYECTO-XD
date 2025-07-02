@@ -420,16 +420,60 @@ def eliminar_cotizacion(request: HttpRequest) -> HttpResponse:
 #############################################################################################################
 # Funciones para manejar cotización detalle
 
-def consultar_cotizacion_detalle(request):
-    return render(request, "facturacion_cliente/cotizacion_detalle/consultar_cotizacion_detalle.html")
-
-def crear_cotizacion_detalle(request):
+def crear_cotizacion_detalle(request: HttpRequest) -> HttpResponse:
+    if request.method == "POST":
+        form = CotizacionDetalleForm(request.POST)
+        if form.is_valid():
+            cotizacion_detalle = form.save(commit=False)
+            cotizacion_detalle.creacion_usuario = request.user.username
+            cotizacion_detalle.save()
+            return redirect("consultar_cotizacion_detalle")
+    else:
+        form = CotizacionDetalleForm()
     return render(request, "facturacion_cliente/cotizacion_detalle/crear_cotizacion_detalle.html")
 
-def eliminar_cotizacion_detalle(request):
+def consultar_cotizacion_detalle(request: HttpRequest) -> HttpResponse:
+    if request.method == "POST":
+        if 'buscar_cotizacion_detalle' in request.POST:
+            buscarCotizacionDetalleForm = BuscarCotizacionDetalleForm(request.POST)
+            if buscarCotizacionDetalleForm.is_valid():
+                cotizacion = buscarCotizacionDetalleForm.cleaned_data.get('cotizacion', '')
+                fecha = buscarCotizacionDetalleForm.cleaned_data.get('fecha', None)
+
+                cotizaciones_detalle = Cotizacion_Detalle.objects.filter(
+                    Q(cotizacion__id=cotizacion) if cotizacion else Q(),
+                    Q(fecha_creacion__lte=fecha) if fecha else Q(),
+                )
+                context = {'buscador_Cotizacion_Detalle': buscarCotizacionDetalleForm, 'cotizaciones_detalle': cotizaciones_detalle}
+                return render(request, "facturacion_cliente/cotizacion_detalle/consultar_cotizacion_detalle.html", context)
+
+    buscarCotizacionDetalleForm = BuscarCotizacionDetalleForm()
+    cotizaciones_detalle = None
+    return render(request, "facturacion_cliente/cotizacion_detalle/consultar_cotizacion_detalle.html", {'buscador_Cotizacion_Detalle': buscarCotizacionDetalleForm, 'cotizaciones_detalle': cotizaciones_detalle})
+
+   
+
+
+def eliminar_cotizacion_detalle(request: HttpRequest) -> HttpResponse:
+    if request.method == "POST":
+        cotizacion_detalle_id = request.POST.get('cotizacion_detalle_id')
+        if cotizacion_detalle_id:
+            cotizacion_detalle = get_object_or_404(Cotizacion_Detalle, id=cotizacion_detalle_id)
+            cotizacion_detalle.delete()
+            return redirect("consultar_cotizacion_detalle")
     return render(request, "facturacion_cliente/cotizacion_detalle/eliminar_cotizacion_detalle.html")
 
-def modificar_cotizacion_detalle(request):
+def modificar_cotizacion_detalle(request: HttpRequest, id: int) -> HttpResponse:
+    cotizacion_detalle = get_object_or_404(Cotizacion_Detalle, id=id)
+    if request.method == "POST":
+        form = CotizacionDetalleForm(request.POST, instance=cotizacion_detalle)
+        if form.is_valid():
+            cotizacion_detalle = form.save(commit=False)
+            cotizacion_detalle.modificacion_usuario = request.user.username
+            cotizacion_detalle.save()
+            return redirect("consultar_cotizacion_detalle")
+    else:
+        form = CotizacionDetalleForm(instance=cotizacion_detalle)
     return render(request, "cotizacion_detalle/modificar_cotizacion_detalle.html")
 
 
@@ -595,11 +639,6 @@ def exportar_pdf_factura(request):
 
 #############################################################################################################
 
-    detalle = get_object_or_404(FacturaDetalle, id=id)
-    if request.method == "POST":
-        detalle.delete()
-        return redirect("consultar_factura_detalle")
-    return render(request, "facturacion_cliente/factura_detalle/eliminar_factura_detalle.html", {"detalle": detalle})
 #############################################################################################################
 
 
@@ -722,50 +761,61 @@ def eliminar_proveedor(request: HttpRequest, id: int) -> HttpResponse:
 
 
 
-def consultar_bodega(request):
-    return render(request, "bodega/consultar_bodega.html")
-
-def crear_bodega(request):
-    return render(request, "bodega/crear_bodega.html")
-
-def eliminar_bodega(request):
-    return render(request, "bodega/eliminar_bodega.html")
-
-def modificar_bodega(request):
-    return render(request, "bodega/modificar_bodega.html")
-#############################################################################################################
-
-def consultar_bodega_detalle(request):
-    return render(request, "bodega_detalle/consultar_bodega_detalle.html")
-
-def crear_bodega_detalle(request):
-    return render(request, "bodega_detalle/crear_bodega_detalle.html")
-
-def eliminar_bodega_detalle(request):
-    return render(request, "bodega_detalle/eliminar_bodega_detalle.html")
-
-def modificar_bodega_detalle(request):
-    return render(request, "bodega_detalle/modificar_bodega_detalle.html")
-#############################################################################################################
 
 # EMPLEADO
-def crear_empleado(request):
+def crear_empleado(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         form = EmpleadoForm(request.POST, request.FILES)
         if form.is_valid():
-            form.save()
+            empleado = form.save(commit=False)
+            empleado.creacion_usuario = request.user.username
+            empleado.save()
             return redirect("consultar_empleado")
     else:
         form = EmpleadoForm()
-    return render(request, 'empleado/crear_empleado.html', {'form': form})
+    return render(request, "empleado/crear_empleado.html", {"form": form, "edit_mode": False})
+   
+   
+def modificar_empleado(request: HttpRequest, id: int) -> HttpResponse:
+    empleado = get_object_or_404(Empleado, id=id)
+    if request.method == "POST":
+        form = EmpleadoForm(request.POST, request.FILES, instance=empleado)
+        if form.is_valid():
+            empleado = form.save(commit=False)
+            empleado.modificacion_usuario = request.user.username
+            empleado.save()
+            return redirect("consultar_empleado")
+    else:
+        form = EmpleadoForm(instance=empleado)
+    return render(request, "empleado/modificar_empleado.html", {"form": form, "empleado": empleado, "edit_mode": True})
 
-def modificar_empleado(request):
-    return render(request, "empleado/modificar_empleado.html")
+def consultar_empleado(request: HttpRequest) -> HttpResponse:
+    if request.method == "POST":
+        if 'buscar_empleado' in request.POST:
+            buscarEmpleadoForm = BuscarEmpleadoForm(request.POST)
+            if buscarEmpleadoForm.is_valid():
+                nombre = buscarEmpleadoForm.cleaned_data.get('nombre', '')
+                apellido = buscarEmpleadoForm.cleaned_data.get('apellido', '')
+                cedula = buscarEmpleadoForm.cleaned_data.get('cedula', '')
+                fecha = buscarEmpleadoForm.cleaned_data.get('fecha', None)
 
-def consultar_empleado(request):
-    return render(request, 'empleado/consultar_empleado.html')
+                empleados = Empleado.objects.filter(
+                    Q(nombre__icontains=nombre) if nombre else Q(),
+                    Q(apellido__icontains=apellido) if apellido else Q(),
+                    Q(cedula__icontains=cedula) if cedula else Q(),
+                    Q(fecha_creacion__lte=fecha) if fecha else Q(),
+                )
+                context = {'buscador_Empleado': buscarEmpleadoForm, 'empleados': empleados}
+                return render(request, "empleado/consultar_empleado.html", context)
 
-def eliminar_empleado(request):
-    return render(request, 'empleado/eliminar_empleado.html')
+    buscarEmpleadoForm = BuscarEmpleadoForm()
+    empleados = None
+    return render(request, "empleado/consultar_empleado.html", {'buscador_Empleado': buscarEmpleadoForm, 'empleados': empleados})
 
+def eliminar_empleado(request: HttpRequest, id: int) -> HttpResponse:
+    empleado = get_object_or_404(Empleado, id=id)
+    if request.method == "POST":
+        empleado.delete()
+        return redirect("consultar_empleado")
+    return render(request, "empleado/eliminar_empleado.html", {"empleado": empleado})
 #############################################################################################################

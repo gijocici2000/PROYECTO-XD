@@ -5,6 +5,10 @@ urlpatterns = [
     path('', views.index, name='index'),
     path('login/', views.login, name='login'),
 
+
+    #Sucursal
+    
+
     # Cliente
     path('cliente/crear/', views.crear_cliente, name='crear_cliente'),
     path('cliente/consultar/', views.consultar_cliente, name='consultar_cliente'),
@@ -32,17 +36,6 @@ urlpatterns = [
     path('proveedor/eliminar/', views.eliminar_proveedor, name='eliminar_proveedor'),
     path('proveedor/modificar/', views.modificar_proveedor, name='modificar_proveedor'),
 
-    # Bodega
-    path('bodega/consultar/', views.consultar_bodega, name='consultar_bodega'),
-    path('bodega/crear/', views.crear_bodega, name='crear_bodega'),
-    path('bodega/eliminar/', views.eliminar_bodega, name='eliminar_bodega'),
-    path('bodega/modificar/', views.modificar_bodega, name='modificar_bodega'),
-
-    # Bodega Detalle
-    path('bodega_detalle/consultar/', views.consultar_bodega_detalle, name='consultar_bodega_detalle'),
-    path('bodega_detalle/crear/', views.crear_bodega_detalle, name='crear_bodega_detalle'),
-    path('bodega_detalle/eliminar/', views.eliminar_bodega_detalle, name='eliminar_bodega_detalle'),
-    path('bodega_detalle/modificar/', views.modificar_bodega_detalle, name='modificar_bodega_detalle'),
 
     # Empleado
     path('empleado/crear/', views.crear_empleado, name='crear_empleado'),
@@ -67,4 +60,7 @@ urlpatterns = [
 
     #cotizacion_detalle
 
+
+
+  
 ]
