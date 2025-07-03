@@ -256,24 +256,24 @@ class Factura(models.Model):
         return f"Factura #{self.factura_codigo} - {self.cliente}"
 
 
-class Factura_Detalle(models.Model):
+class FacturaDetalle(models.Model):
     id = models.AutoField(primary_key=True)
     factura = models.ForeignKey(Factura, on_delete=models.CASCADE, related_name="detalles")
     producto = models.ForeignKey(Producto, on_delete=models.RESTRICT)
     cantidad = models.PositiveIntegerField(default=1)
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
 
-    fecha_creacion = models.DateTimeField(auto_now_add=True , )
-    fecha_modificacion = models.DateTimeField(auto_now=True , )
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_modificacion = models.DateTimeField(auto_now=True)
     creacion_usuario = models.CharField(max_length=50)
     modificacion_usuario = models.CharField(max_length=50)
-    estado = models.IntegerField(default=1)
+    estado = models.IntegerField(choices=[(1, 'Activo'), (0, 'Anulado')], default=1)
 
-
-    class Meta:
-        db_table = "factura_detalle"
-        verbose_name = "Detalle de Factura"
-        verbose_name_plural = "Detalles de Factura"
+    def save(self, *args, **kwargs):
+        self.subtotal = self.cantidad * self.precio_unitario
+        super().save(*args, **kwargs)
+        self.factura.actualizar_totales()
 
     def __str__(self):
         return f"{self.producto.nombre} - {self.cantidad} unidades"
