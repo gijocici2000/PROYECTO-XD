@@ -281,7 +281,7 @@ class Factura(models.Model):
 
 
 
-class FacturaDetalle(models.Model):
+class Factura_Detalle(models.Model):
     id = models.AutoField(primary_key=True)
     factura = models.ForeignKey(Factura, on_delete=models.CASCADE, related_name="detalles")
     producto = models.ForeignKey(Producto, on_delete=models.RESTRICT)
@@ -295,7 +295,6 @@ class FacturaDetalle(models.Model):
     modificacion_usuario = models.CharField(max_length=50)
     estado = models.IntegerField(choices=[(1, 'Activo'), (0, 'Anulado')], default=1)
 
-<<<<<<< HEAD
     @property
     def precio(self):
         # Retorna el precio del producto relacionado
@@ -314,12 +313,6 @@ class FacturaDetalle(models.Model):
         db_table = "factura_detalle"
         verbose_name = "Detalle de Factura"
         verbose_name_plural = "Detalles de Factura"
-=======
-    def save(self, *args, **kwargs):
-        self.subtotal = self.cantidad * self.precio_unitario
-        super().save(*args, **kwargs)
-        self.factura.actualizar_totales()
->>>>>>> 866c9046ca765164ab6a064e33d283c2661463b5
 
     def __str__(self):
         return f"{self.producto.nombre} - {self.cantidad} unidades"

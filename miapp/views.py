@@ -482,7 +482,6 @@ def modificar_cotizacion_detalle(request: HttpRequest, id: int) -> HttpResponse:
 
 def crear_factura(request):
     if request.method == 'POST':
-<<<<<<< HEAD
         form = FacturaForm(request.POST)
         formset = FacturaDetalleFormSet(request.POST, queryset=Factura_Detalle.objects.none())
 
@@ -494,7 +493,7 @@ def crear_factura(request):
             factura.descuento_total = Decimal('0.00')
             factura.total = Decimal('0.00')
             factura.cantidad_productos = 0
-            factura.save()  # Aquí se genera el numero_factura automático
+            factura.save()
 
             subtotal_general = Decimal('0.00')
             total_descuento = Decimal('0.00')
@@ -506,7 +505,7 @@ def crear_factura(request):
                     cantidad = detalle_form.cleaned_data['cantidad']
 
                     precio_unitario = Decimal(producto.precio)
-                    descuento_unitario = precio_unitario * Decimal('0.10')  # Descuento automático fijo 10%
+                    descuento_unitario = precio_unitario * Decimal('0.10')
                     precio_final = precio_unitario - descuento_unitario
 
                     subtotal = precio_final * cantidad
@@ -523,10 +522,9 @@ def crear_factura(request):
                     total_descuento += descuento_unitario * cantidad
                     cantidad_productos += cantidad
 
-            iva = (subtotal_general - total_descuento) * Decimal('0.12')  # IVA del 12%
+            iva = (subtotal_general - total_descuento) * Decimal('0.12')
             total_final = (subtotal_general - total_descuento) + iva
 
-            # Actualizar la factura con los totales calculados
             factura.subtotal = subtotal_general
             factura.descuento_total = total_descuento
             factura.iva = iva
@@ -540,38 +538,12 @@ def crear_factura(request):
         form = FacturaForm()
         formset = FacturaDetalleFormSet(queryset=Factura_Detalle.objects.none())
 
+    productos = Producto.objects.all()
+
     return render(request, 'facturacion_cliente/factura/crear_factura.html', {
         'form': form,
-        'formset': formset
-    })
-=======
-        factura_form = FacturaForm(request.POST)
-        formset = FacturaDetalleFormSet(request.POST)
-        
-        if factura_form.is_valid() and formset.is_valid():
-            factura = factura_form.save()
-            detalles = formset.save(commit=False)
-            for detalle in detalles:
-                detalle.factura = factura
-                detalle.save()
-            
-            # Obtener los detalles de la factura para mostrar
-            factura_detalle = FacturaDetalle.objects.filter(factura=factura)
-            return render(request, 'miapp/templates/facturacion_cliente/factura/crear_factura.html', {
-                'factura': factura,
-                'factura_detalle': factura_detalle,
-                'facturaform': factura_form,
-                'formset': formset,
-            })
-
-    else:
-        factura_form = FacturaForm()
-        formset = FacturaDetalleFormSet()
->>>>>>> 866c9046ca765164ab6a064e33d283c2661463b5
-
-    return render(request, 'miapp/templates/facturacion_cliente/factura/crear_factura.html', {
-        'facturaform': factura_form,
         'formset': formset,
+        'productos': productos
     })
 
 def consultar_factura(request: HttpRequest) -> HttpResponse:

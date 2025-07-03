@@ -10,26 +10,38 @@
     <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
     <link rel="stylesheet" href="{% static 'css/body.css' %}">
     <link rel="stylesheet" href="{% static 'css/estilos.css' %}">
+   
 
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Tu propio CSS si deseas -->
+    <link href="{% static 'css/estilos.css' %}" rel="stylesheet">
     <style>
         body {
-            background-color: #585252;
-            color: #fff;
-        }
-        input, select, textarea {
-            background-color: #ffffff !important;
-            color: #000000 !important;
-            border: 1px solid #555 !important;
-        }
-        #projector {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: -1;
-            background: transparent;
-        }
+    background-color: #585252;
+    color: #fff;
+}
+input, select, textarea {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #555 !important;
+}
+html, body {
+    height: auto !important;
+    min-height: 100%;
+    overflow-y: auto !important;
+}
+#projector {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
+    background: transparent;
+    pointer-events: none; /* Esto asegura que no bloquee el scroll ni clics */
+}
     </style>
 </head>
 
@@ -183,6 +195,79 @@
 
     </div>
 </div>
+<script>
+let productos = [];
+
+document.getElementById('buscar_producto').addEventListener('change', function() {
+    const select = this;
+    const productoId = select.value;
+    if (!productoId) return;
+
+    const nombre = select.options[select.selectedIndex].dataset.nombre;
+    const stock = select.options[select.selectedIndex].dataset.stock;
+    const precio = select.options[select.selectedIndex].dataset.precio;
+
+    productos.push({
+        id: productoId,
+        nombre: nombre,
+        cantidad: 1,
+        stock: stock,
+        precio: precio,
+        subtotal: precio
+    });
+
+    renderTabla();
+    select.value = "";
+});
+
+function renderTabla() {
+    const tbody = document.getElementById('tabla_detalle').querySelector('tbody');
+    tbody.innerHTML = "";
+
+    let subtotalGeneral = 0;
+
+    productos.forEach((p, index) => {
+        const fila = document.createElement('tr');
+
+        fila.innerHTML = `
+            <td><button type="button" class="btn btn-danger btn-sm eliminar" data-index="${index}">X</button></td>
+            <td>${p.nombre}</td>
+            <td><input type="number" min="1" max="${p.stock}" value="${p.cantidad}" class="form-control cantidad" data-index="${index}"></td>
+            <td>${parseFloat(p.precio).toFixed(2)}</td>
+            <td>${(p.precio * p.cantidad).toFixed(2)}</td>
+        `;
+
+        subtotalGeneral += p.precio * p.cantidad;
+        tbody.appendChild(fila);
+    });
+
+    const iva = subtotalGeneral * 0.12;
+    const total = subtotalGeneral + iva;
+
+    document.getElementById('subtotal').innerText = subtotalGeneral.toFixed(2);
+    document.getElementById('iva').innerText = iva.toFixed(2);
+    document.getElementById('total').innerText = total.toFixed(2);
+
+    document.getElementById('productos_json').value = JSON.stringify(productos);
+}
+
+document.getElementById('tabla_detalle').addEventListener('click', function(e) {
+    if (e.target.classList.contains('eliminar')) {
+        const index = e.target.dataset.index;
+        productos.splice(index, 1);
+        renderTabla();
+    }
+});
+
+document.getElementById('tabla_detalle').addEventListener('input', function(e) {
+    if (e.target.classList.contains('cantidad')) {
+        const index = e.target.dataset.index;
+        const nuevaCantidad = parseInt(e.target.value) || 1;
+        productos[index].cantidad = nuevaCantidad;
+        renderTabla();
+    }
+});
+</script>
 
 {% endblock %}
 
