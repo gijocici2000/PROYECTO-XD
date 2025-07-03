@@ -478,9 +478,7 @@ def modificar_cotizacion_detalle(request: HttpRequest, id: int) -> HttpResponse:
 
 
 ######################################## Facturación Cliente ########################################
-from django.shortcuts import render
-from .models import Factura, FacturaDetalle
-from .forms import FacturaForm, FacturaDetalleFormSet
+
 
 def crear_factura(request):
     if request.method == 'POST':
