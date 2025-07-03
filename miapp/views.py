@@ -479,8 +479,10 @@ def modificar_cotizacion_detalle(request: HttpRequest, id: int) -> HttpResponse:
 
 ######################################## Facturación Cliente ########################################
 
+
 def crear_factura(request):
     if request.method == 'POST':
+<<<<<<< HEAD
         form = FacturaForm(request.POST)
         formset = FacturaDetalleFormSet(request.POST, queryset=Factura_Detalle.objects.none())
 
@@ -542,7 +544,35 @@ def crear_factura(request):
         'form': form,
         'formset': formset
     })
+=======
+        factura_form = FacturaForm(request.POST)
+        formset = FacturaDetalleFormSet(request.POST)
+        
+        if factura_form.is_valid() and formset.is_valid():
+            factura = factura_form.save()
+            detalles = formset.save(commit=False)
+            for detalle in detalles:
+                detalle.factura = factura
+                detalle.save()
+            
+            # Obtener los detalles de la factura para mostrar
+            factura_detalle = FacturaDetalle.objects.filter(factura=factura)
+            return render(request, 'miapp/templates/facturacion_cliente/factura/crear_factura.html', {
+                'factura': factura,
+                'factura_detalle': factura_detalle,
+                'facturaform': factura_form,
+                'formset': formset,
+            })
 
+    else:
+        factura_form = FacturaForm()
+        formset = FacturaDetalleFormSet()
+>>>>>>> 866c9046ca765164ab6a064e33d283c2661463b5
+
+    return render(request, 'miapp/templates/facturacion_cliente/factura/crear_factura.html', {
+        'facturaform': factura_form,
+        'formset': formset,
+    })
 
 def consultar_factura(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
