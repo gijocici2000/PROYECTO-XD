@@ -1,73 +1,172 @@
-<form method="post" class="border rounded p-4 shadow bg-white">
-    {% csrf_token %}
+{% extends "index.html" %}
 
-    <!-- Tus campos de cabecera: cliente, sucursal, tipo_pago, etc. -->
-    <div class="row mb-3">
-        <div class="col-md-4">
-            <label>Cliente:</label>
-            {{ form.cliente }}
+{% block main %}
+<div class="container my-4">
+    <h4><i class="bi bi-cart-fill"></i> Nueva Factura</h4>
+
+    <form method="post" class="border rounded p-4 shadow bg-white">
+        {% csrf_token %}
+
+        <!-- Datos de la cabecera de factura -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Cliente:</label>
+                {{ form.cliente }}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Sucursal:</label>
+                {{ form.sucursal }}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Tipo de Pago:</label>
+                {{ form.tipo_pago }}
+            </div>
         </div>
-        <div class="col-md-4">
-            <label>Sucursal:</label>
-            {{ form.sucursal }}
+
+        <!-- Buscar producto -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Buscar Producto:</label>
+            <select id="buscar_producto" class="form-select" style="width: 100%;">
+                <option value="">Seleccione un producto</option>
+                {% for p in productos %}
+                <option value="{{ p.id }}" data-nombre="{{ p.nombre }}" data-stock="{{ p.stock }}" data-precio="{{ p.precio }}">
+                    {{ p.nombre }}
+                </option>
+                {% endfor %}
+            </select>
         </div>
-        <div class="col-md-4">
-            <label>Tipo de Pago:</label>
-            {{ form.tipo_pago }}
+
+        <!-- Tabla de detalle -->
+        <div class="table-responsive mb-3">
+            <table class="table table-bordered align-middle" id="tabla_detalle">
+                <thead>
+                    <tr>
+                        <th>Eliminar</th>
+                        <th>Producto</th>
+                        <th>Cantidad</th>
+                        <th>Precio Unitario</th>
+                        <th>Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
-    </div>
 
-    <!-- Buscador de Productos -->
-    <div class="mb-3">
-        <label>Buscar Producto:</label>
-        <select id="buscar_producto" class="form-select">
-            <option value="">Seleccione un producto</option>
-            {% for p in productos %}
-            <option value="{{ p.id }}" data-nombre="{{ p.nombre }}" data-stock="{{ p.stock }}" data-precio="{{ p.precio }}">
-                {{ p.nombre }}
-            </option>
-            {% endfor %}
-        </select>
-    </div>
+        <!-- Campo oculto para enviar productos -->
+        <input type="hidden" name="productos_json" id="productos_json">
 
-    <!-- Tabla Detalle -->
-    <div class="table-responsive mb-3">
-        <table class="table table-bordered align-middle" id="tabla_detalle">
-            <thead>
-                <tr>
-                    <th>Eliminar</th>
-                    <th>Producto</th>
-                    <th>Cantidad</th>
-                    <th>Precio Unitario</th>
-                    <th>Subtotal</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-    </div>
-
-    <!-- Campo Oculto que almacena los productos -->
-    <input type="hidden" name="productos_json" id="productos_json">
-
-    <!-- Resumen Totales -->
-    <div class="row justify-content-end">
-        <div class="col-md-4">
-            <div class="border rounded p-3 bg-light">
-                <div class="d-flex justify-content-between">
-                    <span>Subtotal:</span>
-                    <strong id="subtotal">0.00</strong>
-                </div>
-                <div class="d-flex justify-content-between">
-                    <span>IVA (12%):</span>
-                    <strong id="iva">0.00</strong>
-                </div>
-                <div class="d-flex justify-content-between fw-bold">
-                    <span>Total:</span>
-                    <strong id="total">0.00</strong>
+        <!-- Totales -->
+        <div class="row justify-content-end">
+            <div class="col-md-4">
+                <div class="border rounded p-3 bg-light">
+                    <div class="d-flex justify-content-between">
+                        <span>Subtotal:</span>
+                        <strong id="subtotal">0.00</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>IVA (12%):</span>
+                        <strong id="iva">0.00</strong>
+                    </div>
+                    <div class="d-flex justify-content-between fw-bold">
+                        <span>Total:</span>
+                        <strong id="total">0.00</strong>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <button type="submit" class="btn btn-success w-100 mt-3">Guardar Venta</button>
-</form>
+        <!-- Botón Guardar -->
+        <button type="submit" class="btn btn-success w-100 mt-3">Guardar Factura</button>
+    </form>
+</div>
+{% endblock %}
+
+
+{% block scripts %}
+<!-- jQuery y Select2 si no los tienes en tu plantilla base -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+$(document).ready(function () {
+    $('#buscar_producto').select2({
+        placeholder: "Buscar producto...",
+        allowClear: true
+    });
+});
+
+let productos = [];
+
+document.getElementById('buscar_producto').addEventListener('change', function() {
+    const select = this;
+    const productoId = select.value;
+    if (!productoId) return;
+
+    const nombre = select.options[select.selectedIndex].dataset.nombre;
+    const stock = select.options[select.selectedIndex].dataset.stock;
+    const precio = select.options[select.selectedIndex].dataset.precio;
+
+    productos.push({
+        id: productoId,
+        nombre: nombre,
+        cantidad: 1,
+        stock: stock,
+        precio: precio,
+        subtotal: precio
+    });
+
+    renderTabla();
+    select.value = "";
+    $('#buscar_producto').val(null).trigger('change');
+});
+
+function renderTabla() {
+    const tbody = document.getElementById('tabla_detalle').querySelector('tbody');
+    tbody.innerHTML = "";
+
+    let subtotalGeneral = 0;
+
+    productos.forEach((p, index) => {
+        const fila = document.createElement('tr');
+
+        fila.innerHTML = `
+            <td><button type="button" class="btn btn-danger btn-sm eliminar" data-index="${index}">X</button></td>
+            <td>${p.nombre}</td>
+            <td><input type="number" min="1" max="${p.stock}" value="${p.cantidad}" class="form-control cantidad" data-index="${index}"></td>
+            <td>${parseFloat(p.precio).toFixed(2)}</td>
+            <td>${(p.precio * p.cantidad).toFixed(2)}</td>
+        `;
+
+        subtotalGeneral += p.precio * p.cantidad;
+        tbody.appendChild(fila);
+    });
+
+    const iva = subtotalGeneral * 0.12;
+    const total = subtotalGeneral + iva;
+
+    document.getElementById('subtotal').innerText = subtotalGeneral.toFixed(2);
+    document.getElementById('iva').innerText = iva.toFixed(2);
+    document.getElementById('total').innerText = total.toFixed(2);
+
+    document.getElementById('productos_json').value = JSON.stringify(productos);
+}
+
+document.getElementById('tabla_detalle').addEventListener('click', function(e) {
+    if (e.target.classList.contains('eliminar')) {
+        const index = e.target.dataset.index;
+        productos.splice(index, 1);
+        renderTabla();
+    }
+});
+
+document.getElementById('tabla_detalle').addEventListener('input', function(e) {
+    if (e.target.classList.contains('cantidad')) {
+        const index = e.target.dataset.index;
+        const nuevaCantidad = parseInt(e.target.value) || 1;
+        productos[index].cantidad = nuevaCantidad;
+        renderTabla();
+    }
+});
+</script>
+{% endblock %}
