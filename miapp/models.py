@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from decimal import Decimal
-
+from django.db.models import Max
 # ---------------------------administracion 
 # SUCURSAL
 # ---------------------------
@@ -138,7 +138,7 @@ class Producto(models.Model):
     categoria = models.CharField(max_length=20)
     unidad = models.CharField(max_length=255)
     precio = models.FloatField(default=0)
-
+    stock=models.PositiveIntegerField()
     fecha_creacion = models.DateTimeField(auto_now_add=True , )
     fecha_modificacion = models.DateTimeField(auto_now=True , )
     creacion_usuario = models.CharField(max_length=50)
@@ -152,6 +152,7 @@ class Producto(models.Model):
 
     def __str__(self):
         return self.nombre
+    
 
 
 class Descuento(models.Model):
@@ -176,55 +177,93 @@ class Descuento(models.Model):
         return f'{self.descuento} {self.fecha_inicio} {self.fecha_final}'
 
 
+#iva###
+class Iva(models.Model):
+    nombre = models.CharField(max_length=50,default='iva', null=True)
+    porcentaje = models.DecimalField(max_digits=5, decimal_places=2 ,null=False)  # Ejemplo: 12.00
 
+    
+    class Meta:
+        db_table = "iva"
+        verbose_name = "iva"
+        verbose_name_plural = "ivas"
 
 # ---------------------------
 # COTIZACIÓN Y DETALLES
 # ---------------------------
-
 class Cotizacion(models.Model):
     cotizacion_codigo = models.AutoField(primary_key=True)
-    cliente = models.ForeignKey(Cliente, on_delete=models.RESTRICT)
+    numero_cotizacion = models.CharField(max_length=20, unique=True, blank=True, null=True)
     sucursal = models.ForeignKey(Sucursal, on_delete=models.RESTRICT)
     empleado = models.ForeignKey(Empleado, on_delete=models.RESTRICT, blank=True, null=True)
-
+    cliente = models.ForeignKey(Cliente, on_delete=models.RESTRICT)
+    
+    fecha_emision = models.DateTimeField(default=timezone.now)
+    fecha_vencimiento = models.DateTimeField(blank=True, null=True)
     comentario = models.TextField(blank=True, null=True)
-    cantidad_productos = models.PositiveIntegerField(default=0)
-    subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
-    descuento = models.ForeignKey(Descuento, on_delete=models.SET_NULL, blank=True, null=True)
-    iva = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
-    total = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
-
+    
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_modificacion = models.DateTimeField(auto_now=True)
     creacion_usuario = models.CharField(max_length=50)
     modificacion_usuario = models.CharField(max_length=50)
     estado = models.IntegerField(default=1)  # 1=Activa, 0=Anulada
-    class Meta: 
+    
+    class Meta:
         db_table = "cotizacion"
-        verbose_name = "cotizacion"
-        verbose_name_plural = "cotizaciones"
-        ordering = ["fecha_creacion"]        
+        ordering = ["-fecha_creacion"]
+
+    def __str__(self):
+        return f"Cotización {self.numero_cotizacion or self.cotizacion_codigo} - {self.cliente}"
+
+    def save(self, *args, **kwargs):
+        if not self.numero_cotizacion:
+            max_id = Cotizacion.objects.aggregate(max_id=Max('cotizacion_codigo'))['max_id'] or 0
+            siguiente = max_id + 1
+            self.numero_cotizacion = f"C-{timezone.now().year}-{siguiente:05d}"
+        super().save(*args, **kwargs)
+
 
 class Cotizacion_Detalle(models.Model):
     id = models.AutoField(primary_key=True)
-    Cotizacion = models.ForeignKey(Cotizacion, on_delete=models.CASCADE, related_name="detalles")
+    cotizacion = models.ForeignKey(Cotizacion, on_delete=models.CASCADE, related_name="detalles")
     producto = models.ForeignKey(Producto, on_delete=models.RESTRICT)
     cantidad = models.PositiveIntegerField(default=1)
+    precio_cotizacion = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))  # Precio congelado
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    descuento_total = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    iva = models.ForeignKey(Iva, on_delete=models.RESTRICT, )
 
-    fecha_creacion = models.DateTimeField(auto_now_add=True , )
-    fecha_modificacion = models.DateTimeField(auto_now=True , )
+    total_cotizacion_valor = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_modificacion = models.DateTimeField(auto_now=True)
     creacion_usuario = models.CharField(max_length=50)
     modificacion_usuario = models.CharField(max_length=50)
-    estado = models.IntegerField(default=1)
+    estado = models.IntegerField(choices=[(1, 'Activo'), (0, 'Anulado')], default=1)
+
+    @property
+    def subtotal_calculado(self):
+        return Decimal(str(self.precio_cotizacion)) * self.cantidad
+
+    @property
+    def iva_total(self):
+        return Decimal(str(self.subtotal)) * Decimal(str(self.iva.porcentaje)) / 100
+
+    @property
+    def total_calculado(self):
+        return Decimal(str(self.subtotal)) + self.iva_total
 
     class Meta:
         db_table = "cotizacion_detalle"
-        verbose_name = "cotizacion detalle"
-        verbose_name_plural = "cotizacion detalles"
-        ordering = ["fecha_creacion"]
+        verbose_name = "Detalle de Cotización"
+        verbose_name_plural = "Detalles de Cotización"
 
+    def __str__(self):
+        return f"{self.producto.nombre} - {self.cantidad} unidades"
+
+
+
+   
 # ---------------------------
 # FACTURA Y DETALLES
 # ---------------------------
@@ -232,11 +271,9 @@ class Cotizacion_Detalle(models.Model):
 class Factura(models.Model):
     factura_codigo = models.AutoField(primary_key=True)
     numero_factura = models.CharField(max_length=20, unique=True, blank=True, null=True)
-    
-    cliente = models.ForeignKey(Cliente, on_delete=models.RESTRICT)
     sucursal = models.ForeignKey(Sucursal, on_delete=models.RESTRICT)
     empleado = models.ForeignKey(Empleado, on_delete=models.RESTRICT, blank=True, null=True)
-
+    cliente = models.ForeignKey(Cliente, on_delete=models.RESTRICT)
     tipo_pago = models.CharField(max_length=20, choices=[
         ('contado', 'Contado'),
         ('credito', 'Crédito'),
@@ -245,16 +282,7 @@ class Factura(models.Model):
 
     fecha_emision = models.DateTimeField(default=timezone.now)
     fecha_vencimiento = models.DateTimeField(blank=True, null=True)
-    
     comentario = models.TextField(blank=True, null=True)
-    cantidad_productos = models.PositiveIntegerField(default=0)
-    subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
-    descuento_total = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
-    iva = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
-    total = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
-
-    anulada = models.BooleanField(default=False)
-    motivo_anulacion = models.TextField(blank=True, null=True)
 
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_modificacion = models.DateTimeField(auto_now=True)
@@ -272,9 +300,10 @@ class Factura(models.Model):
     # AQUÍ va el método save:
     def save(self, *args, **kwargs):
         if not self.numero_factura:
-            ultimo_id = Factura.objects.all().order_by('-factura_codigo').first()
-            siguiente = (ultimo_id.factura_codigo if ultimo_id else 0) + 1
+            max_id = Factura.objects.aggregate(max_id=Max('factura_codigo'))['max_id'] or 0
+            siguiente = max_id + 1
             self.numero_factura = f"F-{timezone.now().year}-{siguiente:05d}"
+        
         super().save(*args, **kwargs)
 
    
@@ -286,8 +315,11 @@ class Factura_Detalle(models.Model):
     factura = models.ForeignKey(Factura, on_delete=models.CASCADE, related_name="detalles")
     producto = models.ForeignKey(Producto, on_delete=models.RESTRICT)
     cantidad = models.PositiveIntegerField(default=1)
-    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
+    precio_factura = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))  # Precio congelado
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    descuento_total = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    iva = models.ForeignKey(Iva, on_delete=models.RESTRICT)
+    total_factura_valor = models.DecimalField(max_digits=10, decimal_places=3, default=Decimal('0.00'))
 
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_modificacion = models.DateTimeField(auto_now=True)
@@ -296,18 +328,16 @@ class Factura_Detalle(models.Model):
     estado = models.IntegerField(choices=[(1, 'Activo'), (0, 'Anulado')], default=1)
 
     @property
-    def precio(self):
-        # Retorna el precio del producto relacionado
-        return self.producto.precio
+    def subtotal_calculado(self):
+        return Decimal(str(self.precio_factura)) * self.cantidad
 
     @property
-    def descuento(self):
-        # Por ejemplo, descuento fijo de 10%
-        return Decimal(str(self.precio)) * Decimal('0.10')
+    def iva_total(self):
+        return Decimal(str(self.subtotal)) * Decimal(str(self.iva.porcentaje)) / 100
 
     @property
-    def precio_final(self):
-        return (Decimal(str(self.precio)) - self.descuento) * self.cantidad
+    def total_calculado(self):
+        return Decimal(str(self.subtotal)) + self.iva_total
 
     class Meta:
         db_table = "factura_detalle"

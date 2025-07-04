@@ -1,24 +1,51 @@
-{%extends'base html'%}
-{%block content%}
-    <h1>consultar_cliente</h1>
-    <table>
-<head>
-    <tr>
-        <th>id</th>
-        <th>nombre</th>
-</head>
-    </tr>
-<body>
-    <tr>
-<td></td>
-<td></td>
-<td></td>    
-<td></td>
-<td></td>
-    </table>
+<h2>Buscar Detalles de Cotización</h2>
 
+<form method="post" class="row g-3">
+    {% csrf_token %}
+    <div class="col-md-3">
+        {{ buscador_detalle.producto_nombre.label_tag }} {{ buscador_detalle.producto_nombre }}
+    </div>
+    <div class="col-md-3">
+        {{ buscador_detalle.cotizacion_numero.label_tag }} {{ buscador_detalle.cotizacion_numero }}
+    </div>
+    <div class="col-md-2">
+        {{ buscador_detalle.desde.label_tag }} {{ buscador_detalle.desde }}
+    </div>
+    <div class="col-md-2">
+        {{ buscador_detalle.hasta.label_tag }} {{ buscador_detalle.hasta }}
+    </div>
+    <div class="col-md-2 d-flex align-items-end">
+        <button type="submit" name="buscar_cotizacion_detalle" class="btn btn-primary">Buscar</button>
+    </div>
+</form>
 
-</tr>
-</body>
+{% if detalles %}
+<hr>
+<h3>Resultados</h3>
+<table class="table table-bordered table-striped mt-3">
+    <thead>
+        <tr>
+            <th>Producto</th>
+            <th>Cantidad</th>
+            <th>Precio Unitario</th>
+            <th>Subtotal</th>
+            <th>Descuento</th>
+            <th>IVA %</th>
+            <th>Total</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for detalle in detalles %}
+        <tr>
+            <td>{{ detalle.producto.nombre }}</td>
+            <td>{{ detalle.cantidad }}</td>
+            <td>{{ detalle.precio_cotizacion }}</td>
+            <td>{{ detalle.subtotal }}</td>
+            <td>{{ detalle.descuento_total }}</td>
+            <td>{{ detalle.iva.porcentaje }}</td>
+            <td>{{ detalle.total_cotizacion_valor }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
 </table>
-¨{% endblock %}
+{% endif %}

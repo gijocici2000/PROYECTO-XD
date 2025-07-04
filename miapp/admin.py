@@ -15,4 +15,4 @@ admin.site.register(Factura)
 admin.site.register(Factura_Detalle)
 admin.site.register(Cargo)
 admin.site.register(Proveedor)
-
+admin.site.register(Iva)

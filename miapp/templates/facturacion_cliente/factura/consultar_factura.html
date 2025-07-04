@@ -1,66 +1,88 @@
-{% extends 'index.html' %}
-
-    
-
+{% extends "index.html" %}
+{% load static %}
 
 {% block main %}
-<h2 class="text-center mb-4"><b>Consultar factura</b></h2>
-<form method="post"  >
-    {% csrf_token %}
-    {{ buscador_factura }}
-    <button type="submit" name="buscar_factura" value="Buscar factura" class="btn-primary">
-              <i class="fas fa-search"></i>
-        </button>
-   
+<div class="container my-4">
 
-    <button type="submit" name="exportar_factura" value="Exportar Pdf" class="btn-primary">
-        <i class="fa-solid fa-file-pdf"> </i>
-    </button>
-</form>
+    <h2 class="mb-4 text-center">Consultar Facturas</h2>
 
+    <form method="post" class="row g-3 mb-4" style="background-color:#d4f1f9; padding:15px; border-radius:10px;">
+        {% csrf_token %}
 
+        <div class="col-md-3">
+            <label for="id_cliente_cedula" class="form-label">Cédula Cliente</label>
+            {{ buscador_factura.cliente_cedula }}
+        </div>
 
+        <div class="col-md-3">
+            <label for="id_desde" class="form-label">Fecha Desde</label>
+            {{ buscador_factura.desde }}
+        </div>
 
-<div class="tables-container">
-  <table class="table">
-        <thead class="table-primary"> 
-        <tr>
-                
-                
-                <th scope="col">factura_codigo</th>
-                <th scope="col">cliente</th>
-                <th scope="col">contacto</th>
-                <th scope="col">email</th>
-                <th scope="col">comentario</th>
-                <th scope="col">Modificar</th>
-                <th scope="col">Eliminar</th>
-        </tr>
-        </thead>
-        <tbody>
-            {% for f in productos %}
-            <tr>
-              
-                        <td >{{f.factura_codigo}}</td>
-                        <td >{{f.cliente}}</td>
-                        <td >{{f.contacto}}</td>
-                        <td >{{f.email}}</td>
-                        <td >{{f.comentario}}</td>
-                       
-                            
-              <td>
-                <a href="{% url 'modificar_factura' f.id %}" class="btn btn-info btn-sm"> Modificar </a>
-            </td>
-            
-              <td>
-                <a href="{% url 'eliminar_factura' f.id %}" class="btn btn-outline-danger btn-sm" >Eliminar </a>
-                    
-                
-            </td>
-       <div>
-       
-            </div>
-      {% endfor %}
-    </tbody>
-  </table>
+        <div class="col-md-3">
+            <label for="id_hasta" class="form-label">Fecha Hasta</label>
+            {{ buscador_factura.hasta }}
+        </div>
 
+        <div class="col-md-3 d-flex align-items-end">
+            <button type="submit" name="buscar_factura" class="btn btn-primary w-100 me-2">Buscar</button>
+            <button type="submit" name="exportar_factura" class="btn btn-danger w-100">Exportar PDF</button>
+        </div>
+    </form>
+
+    {% if facturas %}
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped align-middle">
+            <thead class="table-dark text-center">
+                <tr>
+                    <th>#</th>
+                    <th>N° Factura</th>
+                    <th>Cliente</th>
+                    <th>Cédula</th>
+                    <th>Fecha</th>
+                    <th>Total Calculado</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in facturas %}
+                <tr>
+                    <td class="text-center">{{ forloop.counter }}</td>
+                    <td>{{ f.numero_factura }}</td>
+                    <td>{{ f.cliente.nombre }}</td>
+                    <td>{{ f.cliente.cedula }}</td>
+                    <td>{{ f.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                    <td class="text-end">{{ f.total_calculado|default:"0.00"|floatformat:2 }}</td>
+                    <td class="text-center">
+                        {% if f.estado == 1 %}
+                            <span class="badge bg-success">Activo</span>
+                        {% else %}
+                            <span class="badge bg-danger">Anulado</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        
+
+                        <form action="{% url 'eliminar_factura' f.factura_codigo %}" method="post" style="display:inline;" onsubmit="return confirm('¿Está seguro que desea eliminar esta factura?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-danger" title="Eliminar">
+                                <i class="bi bi-trash"></i> Eliminar
+                            </button>
+                        </form>
+
+                        <a href="{% url 'exportar_pdf_factura' %}?factura_id={{ f.factura_codigo }}" class="btn btn-sm btn-info ms-1" title="Descargar PDF" target="_blank">
+                            <i class="bi bi-file-earmark-pdf"></i> PDF
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <div class="alert alert-info text-center">No se encontraron facturas.</div>
+    {% endif %}
+
+</div>
 {% endblock %}

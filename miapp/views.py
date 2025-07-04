@@ -1,21 +1,29 @@
-from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render, redirect, get_object_or_404
-from django.db.models import Q
 import io
+import json
+from decimal import Decimal
+from django.db import transaction
+from django.db.models import Q, Sum
+from django.forms import inlineformset_factory
+from django.http import HttpRequest, HttpResponse, FileResponse
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import Table, TableStyle, SimpleDocTemplate, Paragraph
-from .forms import *
+from reportlab.pdfgen import canvas
+from django.shortcuts import redirect
+
+
+
 from .models import *
-from django.shortcuts import render, redirect
-from django.db import transaction
-from decimal import Decimal
-from .models import Factura
-from .forms import FacturaForm, FacturaDetalleFormSet
-from django.forms import inlineformset_factory
+from .forms import *
+
+
+
 
 
 def index(request):
@@ -318,70 +326,118 @@ def crear_cotizacion(request: HttpRequest) -> HttpResponse:
 
 
 
-def consultar_cotizacion(request: HttpRequest) -> HttpResponse:
+def consultar_cotizacion(request):
+    cotizaciones = None
+    buscar_form = BuscarCotizacionForm()  # Debes crear este formulario similar a BuscarFacturaForm
+
     if request.method == "POST":
         if 'buscar_cotizacion' in request.POST:
-            buscarCotizacionForm = BuscarCotizacionForm(request.POST)
-            if buscarCotizacionForm.is_valid():
-                cliente = buscarCotizacionForm.cleaned_data.get('cliente', '')
-                fecha = buscarCotizacionForm.cleaned_data.get('fecha', None)
+            buscar_form = BuscarCotizacionForm(request.POST)
+            if buscar_form.is_valid():
+                cedula = buscar_form.cleaned_data.get('cliente_cedula')
+                desde = buscar_form.cleaned_data.get('desde')
+                hasta = buscar_form.cleaned_data.get('hasta')
 
-                cotizaciones = Cotizacion.objects.filter(
-                    Q(cliente__nombre__icontains=cliente) if cliente else Q(),
-                    Q(fecha_creacion__lte=fecha) if fecha else Q(),
-                )
-                context = {'buscador_Cotizacion': buscarCotizacionForm, 'cotizaciones': cotizaciones}
-                return render(request, "facturacion_cliente/cotizacion/consultar_cotizacion.html", context)
+                filtros = Q()
+                if cedula:
+                    filtros &= Q(cliente__cedula__icontains=cedula)
+                if desde and hasta:
+                    filtros &= Q(fecha_creacion__range=(desde, hasta))
+                elif desde:
+                    filtros &= Q(fecha_creacion__gte=desde)
+                elif hasta:
+                    filtros &= Q(fecha_creacion__lte=hasta)
+
+                cotizaciones = Cotizacion.objects.filter(filtros).order_by('-fecha_creacion')
 
         elif 'exportar_cotizacion' in request.POST:
             return exportar_pdf_cotizacion(request)
-    buscarCotizacionForm = BuscarCotizacionForm()
-    cotizaciones = None
-    return render(request, "facturacion_cliente/cotizacion/consultar_cotizacion.html", {'buscador_Cotizacion': buscarCotizacionForm, 'cotizaciones': cotizaciones})
-def exportar_pdf_cotizacion(request: HttpRequest) -> HttpResponse:
-    response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = 'attachment; filename="consultar_cotizacion.pdf"'
+
+    context = {
+        'buscador_cotizacion': buscar_form,
+        'cotizaciones': cotizaciones
+    }
+    return render(request, "cotizacion/consultar_cotizacion.html", context)
+
+
+def exportar_pdf_cotizacion(request):
+    cotizacion_id = request.POST.get('cotizacion_id')
+
+    if not cotizacion_id:
+        return HttpResponse("ID de cotización no proporcionado.", status=400)
+
+    try:
+        cotizacion = Cotizacion.objects.get(pk=cotizacion_id)
+    except Cotizacion.DoesNotExist:
+        return HttpResponse("Cotización no encontrada.", status=404)
+
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        rightMargin=inch / 4,
-        leftMargin=inch / 4,
-        topMargin=inch / 2,
-        bottomMargin=inch / 4,
-        pagesize=A4
-    )
-    styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name='centered', alignment=TA_CENTER))
-    styles.add(ParagraphStyle(name='RightAlign', alignment=TA_RIGHT))
+    p = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
 
-    lista_cotizacion = []
-    header = Paragraph("Listado de cotizaciones", styles['Heading1'])
-    lista_cotizacion.append(header)
+    # Encabezado
+    p.setFont("Helvetica-Bold", 16)
+    p.drawString(50, height - 50, "COTIZACIÓN")
 
-    buscarCotizacionForm = BuscarCotizacionForm(request.POST)
-    if buscarCotizacionForm.is_valid():
-        cliente = buscarCotizacionForm.cleaned_data.get('cliente', '')
-        fecha = buscarCotizacionForm.cleaned_data.get('fecha', None)
+    p.setFont("Helvetica", 10)
+    p.drawString(50, height - 70, f"Número: {cotizacion.numero_cotizacion}")
+    p.drawString(50, height - 85, f"Cliente: {cotizacion.cliente}")
+    p.drawString(50, height - 100, f"Sucursal: {cotizacion.sucursal}")
+    p.drawString(50, height - 115, f"Fecha Emisión: {cotizacion.fecha_emision.strftime('%d/%m/%Y %H:%M')}")
 
-        cotizaciones = Cotizacion.objects.filter(
-            Q(cliente__nombre__icontains=cliente) if cliente else Q(),
-            Q(fecha_creacion__lte=fecha) if fecha else Q(),
-        )
-        headings = ('Id', 'Cliente', 'Fecha de Creación')
-        allcotizaciones = [(c.pk, c.cliente.nombre, c.fecha_creacion.strftime('%Y-%m-%d')) for c in cotizaciones]
+    # Línea separadora
+    p.line(50, height - 130, width - 50, height - 130)
 
-        t = Table([headings] + allcotizaciones)
-        t.setStyle(TableStyle([
-            ('GRID', (0, 0), (-1, -1), 1, colors.springgreen),
-            ('LINEBELOW', (0, 0), (-1, 0), 2, colors.springgreen),
-            ('BACKGROUND', (0, 0), (-1, 0), colors.springgreen),
-        ]))
-        lista_cotizacion.append(t)
+    # Tabla de productos (detalles)
+    detalles = cotizacion.detalles.all()  # related_name en el modelo CotizacionDetalle
 
-    doc.build(lista_cotizacion)
-    response.write(buffer.getvalue())
-    buffer.close()
-    return response
+    data = [["Producto", "Cantidad", "Precio Unitario", "Subtotal", "IVA", "Total"]]
+
+    for d in detalles:
+        data.append([
+            str(d.producto),
+            str(d.cantidad),
+            f"{d.precio_cotizacion:.2f}",
+            f"{d.subtotal:.2f}",
+            f"{d.iva_total:.2f}",
+            f"{d.total_calculado:.2f}",
+        ])
+
+    # Totales generales
+    subtotal_general = sum(d.subtotal for d in detalles)
+    iva_general = sum(d.iva_total for d in detalles)
+    total_general = sum(d.total_calculado for d in detalles)
+
+    table = Table(data, colWidths=[120, 60, 80, 80, 60, 80])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+    ]))
+
+    table.wrapOn(p, width, height)
+    table_height = 200
+    table.drawOn(p, 50, height - 150 - table_height)
+
+    # Totales
+    y = height - 150 - table_height - 30
+    p.setFont("Helvetica-Bold", 10)
+    p.drawString(400, y, f"Subtotal: {subtotal_general:.2f}")
+    p.drawString(400, y - 15, f"IVA Total: {iva_general:.2f}")
+    p.drawString(400, y - 30, f"TOTAL: {total_general:.2f}")
+
+    # Footer
+    p.setFont("Helvetica-Oblique", 8)
+    p.drawString(50, 30, "Gracias por cotizar con nosotros.")
+
+    p.showPage()
+    p.save()
+
+    buffer.seek(0)
+    return FileResponse(buffer, as_attachment=True, filename=f'Cotizacion_{cotizacion.numero_cotizacion}.pdf')
+
+
+
 
 def modificar_cotizacion(request: HttpRequest, id: int) -> HttpResponse:
     cotizacion = get_object_or_404(Cotizacion, id=id)
@@ -432,27 +488,39 @@ def crear_cotizacion_detalle(request: HttpRequest) -> HttpResponse:
         form = CotizacionDetalleForm()
     return render(request, "facturacion_cliente/cotizacion_detalle/crear_cotizacion_detalle.html")
 
-def consultar_cotizacion_detalle(request: HttpRequest) -> HttpResponse:
+
+def consultar_cotizacion_detalle(request):
+    detalles = None
+    buscar_form = BuscarCotizacionDetalleForm()
+
     if request.method == "POST":
         if 'buscar_cotizacion_detalle' in request.POST:
-            buscarCotizacionDetalleForm = BuscarCotizacionDetalleForm(request.POST)
-            if buscarCotizacionDetalleForm.is_valid():
-                cotizacion = buscarCotizacionDetalleForm.cleaned_data.get('cotizacion', '')
-                fecha = buscarCotizacionDetalleForm.cleaned_data.get('fecha', None)
+            buscar_form = BuscarCotizacionDetalleForm(request.POST)
+            if buscar_form.is_valid():
+                producto_nombre = buscar_form.cleaned_data.get('producto_nombre')
+                cotizacion_numero = buscar_form.cleaned_data.get('cotizacion_numero')
+                desde = buscar_form.cleaned_data.get('desde')
+                hasta = buscar_form.cleaned_data.get('hasta')
 
-                cotizaciones_detalle = Cotizacion_Detalle.objects.filter(
-                    Q(cotizacion__id=cotizacion) if cotizacion else Q(),
-                    Q(fecha_creacion__lte=fecha) if fecha else Q(),
-                )
-                context = {'buscador_Cotizacion_Detalle': buscarCotizacionDetalleForm, 'cotizaciones_detalle': cotizaciones_detalle}
-                return render(request, "facturacion_cliente/cotizacion_detalle/consultar_cotizacion_detalle.html", context)
+                filtros = Q()
+                if producto_nombre:
+                    filtros &= Q(producto__nombre__icontains=producto_nombre)
+                if cotizacion_numero:
+                    filtros &= Q(cotizacion__numero_cotizacion__icontains=cotizacion_numero)
+                if desde and hasta:
+                    filtros &= Q(fecha_creacion__range=(desde, hasta))
+                elif desde:
+                    filtros &= Q(fecha_creacion__gte=desde)
+                elif hasta:
+                    filtros &= Q(fecha_creacion__lte=hasta)
 
-    buscarCotizacionDetalleForm = BuscarCotizacionDetalleForm()
-    cotizaciones_detalle = None
-    return render(request, "facturacion_cliente/cotizacion_detalle/consultar_cotizacion_detalle.html", {'buscador_Cotizacion_Detalle': buscarCotizacionDetalleForm, 'cotizaciones_detalle': cotizaciones_detalle})
+                detalles = Cotizacion_Detalle.objects.filter(filtros).order_by('-fecha_creacion')
 
-   
-
+    context = {
+        'buscador_detalle': buscar_form,
+        'detalles': detalles
+    }
+    return render(request, "facturacion_cliente/cotizacion_detalle/consultar_cotizacion_detalle.html", context)
 
 def eliminar_cotizacion_detalle(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
@@ -460,187 +528,280 @@ def eliminar_cotizacion_detalle(request: HttpRequest) -> HttpResponse:
         if cotizacion_detalle_id:
             cotizacion_detalle = get_object_or_404(Cotizacion_Detalle, id=cotizacion_detalle_id)
             cotizacion_detalle.delete()
+            messages.success(request, "Detalle de cotización eliminado correctamente.")
+            # Aquí redirige a la vista que muestra los detalles de la cotización relacionada
+            return redirect("consultar_cotizacion_detalle")  
+        else:
+            messages.error(request, "No se proporcionó el ID del detalle.")
             return redirect("consultar_cotizacion_detalle")
+
+    # Si no es POST, puedes mostrar una confirmación o redirigir
     return render(request, "facturacion_cliente/cotizacion_detalle/eliminar_cotizacion_detalle.html")
 
 def modificar_cotizacion_detalle(request: HttpRequest, id: int) -> HttpResponse:
     cotizacion_detalle = get_object_or_404(Cotizacion_Detalle, id=id)
+    
     if request.method == "POST":
         form = CotizacionDetalleForm(request.POST, instance=cotizacion_detalle)
         if form.is_valid():
-            cotizacion_detalle = form.save(commit=False)
-            cotizacion_detalle.modificacion_usuario = request.user.username
-            cotizacion_detalle.save()
+            detalle_modificado = form.save(commit=False)
+            detalle_modificado.modificacion_usuario = request.user.username
+            detalle_modificado.save()
+            messages.success(request, "Detalle de cotización modificado correctamente.")
             return redirect("consultar_cotizacion_detalle")
+        else:
+            messages.error(request, "Por favor corrige los errores en el formulario.")
     else:
         form = CotizacionDetalleForm(instance=cotizacion_detalle)
-    return render(request, "cotizacion_detalle/modificar_cotizacion_detalle.html")
+    
+    return render(request, "facturacion_cliente/cotizacion_detalle/modificar_cotizacion_detalle.html", {
+        'form': form,
+        'cotizacion_detalle': cotizacion_detalle,
+    })
+
+
 
 
 ######################################## Facturación Cliente ########################################
 
 
+from django.shortcuts import render, redirect, get_object_or_404
+from django.db.models import Sum, Q
+from django.http import HttpResponse, FileResponse
+from django.contrib import messages
+from django.db import transaction
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.platypus import Table, TableStyle
+from reportlab.lib import colors
+from decimal import Decimal
+import io
+import json
+
+# Tus imports y modelos aquí (Factura, Producto, Iva, Factura_Detalle, etc.)
+
 def crear_factura(request):
+    productos = Producto.objects.filter(estado=1)
+    ivas = Iva.objects.all()
+
     if request.method == 'POST':
         form = FacturaForm(request.POST)
-        formset = FacturaDetalleFormSet(request.POST, queryset=Factura_Detalle.objects.none())
+        productos_json = request.POST.get('productos_json')
 
-        if form.is_valid() and formset.is_valid():
+        if form.is_valid() and productos_json:
             factura = form.save(commit=False)
             factura.creacion_usuario = request.user.username
-            factura.fecha_emision = timezone.now()
-            factura.subtotal = Decimal('0.00')
-            factura.descuento_total = Decimal('0.00')
-            factura.total = Decimal('0.00')
-            factura.cantidad_productos = 0
+            factura.modificacion_usuario = request.user.username
             factura.save()
 
-            subtotal_general = Decimal('0.00')
-            total_descuento = Decimal('0.00')
-            cantidad_productos = 0
+            productos_data = json.loads(productos_json)
 
-            for detalle_form in formset:
-                if detalle_form.cleaned_data:
-                    producto = detalle_form.cleaned_data['producto']
-                    cantidad = detalle_form.cleaned_data['cantidad']
+            for item in productos_data:
+                producto = Producto.objects.get(id=item['id'])
+                iva_obj = Iva.objects.get(id=item['iva_id'])
 
-                    precio_unitario = Decimal(producto.precio)
-                    descuento_unitario = precio_unitario * Decimal('0.10')
-                    precio_final = precio_unitario - descuento_unitario
+                detalle = Factura_Detalle(
+                    factura=factura,
+                    producto=producto,
+                    cantidad=item['cantidad'],
+                    precio_factura=Decimal(item['precio']),
+                    subtotal=Decimal(item['subtotal']),
+                    descuento_total=Decimal(item['descuento']),
+                    iva=iva_obj,
+                    total_factura_valor=Decimal(item['total']),
+                    creacion_usuario=request.user.username,
+                    modificacion_usuario=request.user.username
+                )
+                detalle.save()
 
-                    subtotal = precio_final * cantidad
+            messages.success(request, "Factura creada correctamente.")
+            return redirect('consultar_factura')  # Aquí usas el nombre de la URL
 
-                    Factura_Detalle.objects.create(
-                        factura=factura,
-                        producto=producto,
-                        cantidad=cantidad,
-                        subtotal=subtotal,
-                        creacion_usuario=request.user.username
-                    )
-
-                    subtotal_general += precio_unitario * cantidad
-                    total_descuento += descuento_unitario * cantidad
-                    cantidad_productos += cantidad
-
-            iva = (subtotal_general - total_descuento) * Decimal('0.12')
-            total_final = (subtotal_general - total_descuento) + iva
-
-            factura.subtotal = subtotal_general
-            factura.descuento_total = total_descuento
-            factura.iva = iva
-            factura.total = total_final
-            factura.cantidad_productos = cantidad_productos
-            factura.save()
-
-            return redirect('ver_factura', factura_id=factura.factura_codigo)
+        else:
+            messages.error(request, "Verifica los datos del formulario.")
 
     else:
         form = FacturaForm()
-        formset = FacturaDetalleFormSet(queryset=Factura_Detalle.objects.none())
-
-    productos = Producto.objects.all()
 
     return render(request, 'facturacion_cliente/factura/crear_factura.html', {
         'form': form,
-        'formset': formset,
-        'productos': productos
+        'productos': productos,
+        'ivas': ivas,
     })
 
-def consultar_factura(request: HttpRequest) -> HttpResponse:
-    if request.method == "POST":
-        if 'buscar_factura' in request.POST:
-            buscarFacturaForm = BuscarFacturaForm(request.POST)
-            if buscarFacturaForm.is_valid():
-                cedula = buscarFacturaForm.cleaned_data.get('cliente_cedula', '')
-                desde = buscarFacturaForm.cleaned_data.get('desde')
-                hasta = buscarFacturaForm.cleaned_data.get('hasta')
 
-                facturas = Factura.objects.filter(
-                    Q(cliente__cedula__icontains=cedula) if cedula else Q(),
-                    Q(fecha_creacion__range=(desde, hasta)) if desde and hasta else Q(),
-                    Q(fecha_creacion__gte=desde) if desde else Q(),
-                    Q(fecha_creacion__lte=hasta) if hasta else Q(),
-                )
-                context = {'buscador_factura': buscarFacturaForm, 'facturas': facturas}
-                return render(request, "facturacion_cliente/factura/consultar_factura.html", context)
+def crear_factura_detalle(request):
+    if request.method == 'POST':
+        factura_form = FacturaForm(request.POST)
+        detalle_formset = FacturaDetalleFormSet(request.POST)
+        if factura_form.is_valid() and detalle_formset.is_valid():
+            with transaction.atomic():
+                factura = factura_form.save()
+                detalles = detalle_formset.save(commit=False)
+                for detalle in detalles:
+                    detalle.factura = factura
+                    detalle.save()
+            return redirect('consultar_factura')  # Cambiado a nombre de URL
+    else:
+        factura_form = FacturaForm()
+        detalle_formset = FacturaDetalleFormSet()
+
+    context = {
+        'factura_form': factura_form,
+        'detalle_formset': detalle_formset,
+    }
+    return render(request, "facturacion_cliente/factura/consultar_factura.html", context)
+
+
+def consultar_factura(request):
+    facturas = None
+    buscar_form = BuscarFacturaForm(request.POST or None)
+    filtros = Q()
+
+    if request.method == "POST":
+        if 'buscar_factura' in request.POST and buscar_form.is_valid():
+            cedula = buscar_form.cleaned_data.get('cliente_cedula')
+            desde = buscar_form.cleaned_data.get('desde')
+            hasta = buscar_form.cleaned_data.get('hasta')
+
+            if cedula:
+                filtros &= Q(cliente__cedula__icontains=cedula)
+            if desde and hasta:
+                filtros &= Q(fecha_creacion__range=(desde, hasta))
+            elif desde:
+                filtros &= Q(fecha_creacion__gte=desde)
+            elif hasta:
+                filtros &= Q(fecha_creacion__lte=hasta)
+
+            facturas = Factura.objects.filter(filtros).order_by('-fecha_creacion')
+
+            # Calcular total para cada factura
+            for f in facturas:
+                total = f.detalles.aggregate(total=Sum('total_factura_valor'))['total'] or 0
+                f.total_calculado = total
 
         elif 'exportar_factura' in request.POST:
             return exportar_pdf_factura(request)
 
-    buscarFacturaForm = BuscarFacturaForm()
-    facturas = None
-    return render(request, "facturacion_cliente/factura/consultar_factura.html", {'buscador_factura': buscarFacturaForm, 'facturas': facturas})    
+    context = {
+        'buscador_factura': buscar_form,
+        'facturas': facturas,
+    }
+    return render(request, "facturacion_cliente/factura/consultar_factura.html", context)
 
-def modificar_factura(request: HttpRequest, id: int) -> HttpResponse:
+
+def exportar_pdf_factura(request):
+    
+    factura_id = request.GET.get('factura_id') or request.POST.get('factura_id')
+    
+    if not factura_id:
+        return HttpResponse("ID de factura no proporcionado.", status=400)
+    try:
+        factura = Factura.objects.get(pk=factura_id)
+    except Factura.DoesNotExist:
+        return HttpResponse("Factura no encontrada.", status=404)
+
+    buffer = io.BytesIO()
+    p = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+
+    # Encabezado
+    p.setFont("Helvetica-Bold", 16)
+    p.drawString(50, height - 50, "FACTURA ELECTRÓNICA")
+
+    p.setFont("Helvetica", 10)
+    p.drawString(50, height - 70, f"Número: {factura.numero_factura}")
+    p.drawString(50, height - 85, f"Cliente: {factura.cliente}")
+    p.drawString(50, height - 100, f"Sucursal: {factura.sucursal}")
+    p.drawString(50, height - 115, f"Fecha Emisión: {factura.fecha_emision.strftime('%d/%m/%Y %H:%M')}")
+
+    # Línea separadora
+    p.line(50, height - 130, width - 50, height - 130)
+
+    # Tabla de Productos
+    detalles = factura.detalles.all()
+
+    data = [["Producto", "Cantidad", "Precio Unitario", "Subtotal", "IVA", "Total"]]
+
+    for d in detalles:
+        data.append([
+            str(d.producto),
+            str(d.cantidad),
+            f"{d.precio_factura:.2f}",
+            f"{d.subtotal:.2f}",
+            f"{d.iva_total:.2f}",
+            f"{d.total_calculado:.2f}",
+        ])
+
+    # Calcular Totales
+    subtotal_general = sum(d.subtotal for d in detalles)
+    iva_general = sum(d.iva_total for d in detalles)
+    total_general = sum(d.total_calculado for d in detalles)
+
+    table = Table(data, colWidths=[120, 60, 80, 80, 60, 80])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+    ]))
+
+    table.wrapOn(p, width, height)
+    table_height = 200
+    table.drawOn(p, 50, height - 150 - table_height)
+
+    # Totales
+    y = height - 150 - table_height - 30
+    p.setFont("Helvetica-Bold", 10)
+    p.drawString(400, y, f"Subtotal: {subtotal_general:.2f}")
+    p.drawString(400, y - 15, f"IVA Total: {iva_general:.2f}")
+    p.drawString(400, y - 30, f"TOTAL: {total_general:.2f}")
+
+    # Footer
+    p.setFont("Helvetica-Oblique", 8)
+    p.drawString(50, 30, "Gracias por su compra.")
+
+    p.showPage()
+    p.save()
+
+    buffer.seek(0)
+    return FileResponse(buffer, as_attachment=True, filename=f'Factura_{factura.numero_factura}.pdf')
+
+
+def modificar_factura(request, id):
     factura = get_object_or_404(Factura, factura_codigo=id)
-    facturaForm = FacturaForm(request.POST or None, instance=factura)
-    if request.method == "POST" and facturaForm.is_valid():
-        facturaForm.save()
-        return redirect('consultar_factura')
-    return render(request, "facturacion_cliente/factura/modificar_factura.html", {'facturaform': facturaForm})
+    if request.method == "POST":
+        form = FacturaForm(request.POST, instance=factura)
+        if form.is_valid():
+            factura_modificada = form.save(commit=False)
+            factura_modificada.modificacion_usuario = request.user.username
+            factura_modificada.save()
+            messages.success(request, "Factura modificada correctamente.")
+            return redirect('consultar_factura')
+        else:
+            messages.error(request, "Por favor corrige los errores en el formulario.")
+    else:
+        form = FacturaForm(instance=factura)
+
+    context = {
+        'form': form,
+        'factura': factura,
+    }
+    return render(request, "facturacion_cliente/factura/modificar_factura.html", context)
+
 
 def eliminar_factura(request, id):
     factura = get_object_or_404(Factura, factura_codigo=id)
     if request.method == "POST":
-        factura.estado = 0
+        factura.estado = 0  # Marcar como anulado
         factura.save()
+        messages.success(request, "Factura anulada correctamente.")
         return redirect('consultar_factura')
 
-    return render(request, "facturacion_cliente/factura/eliminar_factura.html", {"factura": factura})
+    context = {
+        'factura': factura,
+    }
+    return render(request, "facturacion_cliente/factura/eliminar_factura.html", context)
 
-
-def exportar_pdf_factura(request):
-    """
-    Exporta a PDF el listado de facturas filtradas por cédula de cliente y rango de fechas.
-    """
-    response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = 'attachment; filename="consultar_facturas.pdf"'
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        rightMargin=inch / 4,
-        leftMargin=inch / 4,
-        topMargin=inch / 2,
-        bottomMargin=inch / 4,
-        pagesize=A4
-    )
-    styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name='centered', alignment=TA_CENTER))
-    styles.add(ParagraphStyle(name='RightAlign', alignment=TA_RIGHT))
-    lista_facturas = []
-    header = Paragraph("Listado de Facturas", styles['Heading1'])
-    lista_facturas.append(header)
-    buscarFacturaForm = BuscarFacturaForm(request.POST or None)
-    if buscarFacturaForm.is_valid():
-        cedula = buscarFacturaForm.cleaned_data.get('cliente_cedula', '')
-        desde = buscarFacturaForm.cleaned_data.get('desde')
-        hasta = buscarFacturaForm.cleaned_data.get('hasta')
-        filtros = Q()
-        if cedula:
-            filtros &= Q(cliente__cedula__icontains=cedula)
-        if desde and hasta:
-            filtros &= Q(fecha_creacion__range=(desde, hasta))
-        elif desde:
-            filtros &= Q(fecha_creacion__gte=desde)
-        elif hasta:
-            filtros &= Q(fecha_creacion__lte=hasta)
-        facturas = Factura.objects.filter(filtros)
-        headings = ('Fecha', 'Cliente', 'Cod Factura', 'Total')
-        allfacturas = [
-            (f.fecha_creacion.strftime('%Y-%m-%d'), str(f.cliente), f.factura_codigo, f.total)
-            for f in facturas
-        ]
-        t = Table([headings] + allfacturas)
-        t.setStyle(TableStyle([
-            ('GRID', (0, 0), (-1, -1), 1, colors.springgreen),
-            ('LINEBELOW', (0, 0), (-1, 0), 2, colors.springgreen),
-            ('BACKGROUND', (0, 0), (-1, 0), colors.springgreen)
-        ]))
-        lista_facturas.append(t)
-    doc.build(lista_facturas)
-    response.write(buffer.getvalue())
-    buffer.close()
-    return response
 
 
 #############################################################################################################

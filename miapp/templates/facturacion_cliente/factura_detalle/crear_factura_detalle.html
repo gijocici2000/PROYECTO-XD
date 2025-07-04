@@ -1,0 +1,10 @@
+<!-- templates/facturacion_cliente/factura/crear_factura.html -->
+<form method="post">
+    {% csrf_token %}
+    {{ factura_form.as_p }}
+    {{ detalle_formset.management_form }}
+    {% for form in detalle_formset %}
+        {{ form.as_p }}
+    {% endfor %}
+    <button type="submit">Guardar Factura</button>
+</form>

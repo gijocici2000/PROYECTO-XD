@@ -5,47 +5,46 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Ventas</title>
+
+    <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
-    <link rel="stylesheet" href="{% static 'css/body.css' %}">
-    <link rel="stylesheet" href="{% static 'css/estilos.css' %}">
-   <!-- CSS Select2 -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-
-<!-- JS Select2 -->
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
 
-    <!-- Tu propio CSS si deseas -->
-    <link href="{% static 'css/estilos.css' %}" rel="stylesheet">
+    <!-- CSS Personalizados -->
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'css/body.css' %}">
+    <link rel="stylesheet" href="{% static 'css/estilos.css' %}">
+
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
     <style>
         body {
-    background-color: #585252;
-    color: #fff;
-}
-input, select, textarea {
-    background-color: #ffffff !important;
-    color: #000000 !important;
-    border: 1px solid #555 !important;
-}
-html, body {
-    height: auto !important;
-    min-height: 100%;
-    overflow-y: auto !important;
-}
-#projector {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    z-index: -1;
-    background: transparent;
-    pointer-events: none; /* Esto asegura que no bloquee el scroll ni clics */
-}
+            background-color: #585252;
+            color: #fff;
+        }
+        input, select, textarea {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            border: 1px solid #555 !important;
+        }
+        html, body {
+            height: auto !important;
+            min-height: 100%;
+            overflow-y: auto !important;
+        }
+        #projector {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            background: transparent;
+            pointer-events: none;
+        }
     </style>
 </head>
 
@@ -65,67 +64,45 @@ html, body {
 
         <div class="collapse navbar-collapse" id="navbarSupportedContent">
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'index' %}">Inicio</a>
-                </li>
-
+                <li class="nav-item"><a class="nav-link" href="{% url 'index' %}">Inicio</a></li>
+                <!-- Menús desplegables -->
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                        Cliente
-                    </a>
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Cliente</a>
                     <ul class="dropdown-menu">
                         <li><a class="dropdown-item" href="{% url 'consultar_cliente' %}">Consultar Cliente</a></li>
                         <li><a class="dropdown-item" href="{% url 'crear_cliente' %}">Crear Cliente</a></li>
                     </ul>
                 </li>
-
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                        Libro
-                    </a>
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Libro</a>
                     <ul class="dropdown-menu">
                         <li><a class="dropdown-item" href="{% url 'crear_producto' %}">Crear Libro</a></li>
                         <li><a class="dropdown-item" href="{% url 'consultar_producto' %}">Consultar Libro</a></li>
                     </ul>
                 </li>
-
-                
-
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                        Descuento
-                    </a>
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Descuento</a>
                     <ul class="dropdown-menu">
                         <li><a class="dropdown-item" href="{% url 'consultar_descuento' %}">Consultar Descuento</a></li>
                         <li><a class="dropdown-item" href="{% url 'crear_descuento' %}">Crear Descuento</a></li>
                     </ul>
                 </li>
-
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                        Proveedor
-                    </a>
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Proveedor</a>
                     <ul class="dropdown-menu">
                         <li><a class="dropdown-item" href="{% url 'consultar_proveedor' %}">Consultar Proveedor</a></li>
                         <li><a class="dropdown-item" href="{% url 'crear_proveedor' %}">Crear Proveedor</a></li>
                     </ul>
                 </li>
-
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                        Cotizacion
-                    </a>
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Cotizacion</a>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{% url 'crear_cotizacion' %}">Consultar Cotizacion</a></li>
-                        <li><a class="dropdown-item" href="{% url 'consultar_cotizacion' %}">Crear Cotizacion</a></li>
+                        <li><a class="dropdown-item" href="{% url 'crear_cotizacion' %}">Crear Cotizacion</a></li>
+                        <li><a class="dropdown-item" href="{% url 'consultar_cotizacion' %}">Consultar Cotizacion</a></li>
                     </ul>
                 </li>
-
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                        Factura
-                    </a>
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Factura</a>
                     <ul class="dropdown-menu">
                         <li><a class="dropdown-item" href="{% url 'consultar_factura' %}">Consultar Factura</a></li>
                         <li><a class="dropdown-item" href="{% url 'crear_factura' %}">Crear Factura</a></li>
@@ -144,157 +121,54 @@ html, body {
 
 <!-- CONTENIDO PRINCIPAL -->
 {% block main %}
-<style>
-  .form-container {
-    min-height: 80vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  form .form-control {
-    width: 100%;
-    background-color: #fffdfd;
-    color: #fff;
-    border: 1px solid #555;
-  }
-
-  label.form-label {
-    color: #000000;
-  }
-
-  .card {
-    background-color: #ffffff;
-    color: #060606;
-  }
-</style>
 <h1 class="text-center my-4">Bienvenido al sistema web</h1>
-
 <div class="container">
     <div class="row text-center">
-
         <div class="col mio-div-grid">
             Hotwheels
             <img src="{% static 'img/hot_wheels.png' %}" alt="Hotwheels" width="100">
-            <div class="description-grid">
-                <p>125</p>
-            </div>
+            <div class="description-grid"><p>125</p></div>
         </div>
-
         <div class="col mio-div-grid">
             Clientes
             <img src="{% static 'img/clientes.png' %}" alt="Clientes" width="100">
-            <div class="description-grid">
-                <p>125</p>
-            </div>
+            <div class="description-grid"><p>125</p></div>
         </div>
-
         <div class="col mio-div-grid">
             Empleados
             <img src="{% static 'img/empleados.png' %}" alt="Empleados" width="100">
-            <div class="description-grid">
-                <p>125</p>
-            </div>
+            <div class="description-grid"><p>125</p></div>
         </div>
-
     </div>
 </div>
-<script>
-let productos = [];
-
-document.getElementById('buscar_producto').addEventListener('change', function() {
-    const select = this;
-    const productoId = select.value;
-    if (!productoId) return;
-
-    const nombre = select.options[select.selectedIndex].dataset.nombre;
-    const stock = select.options[select.selectedIndex].dataset.stock;
-    const precio = select.options[select.selectedIndex].dataset.precio;
-
-    productos.push({
-        id: productoId,
-        nombre: nombre,
-        cantidad: 1,
-        stock: stock,
-        precio: precio,
-        subtotal: precio
-    });
-
-    renderTabla();
-    select.value = "";
-});
-
-function renderTabla() {
-    const tbody = document.getElementById('tabla_detalle').querySelector('tbody');
-    tbody.innerHTML = "";
-
-    let subtotalGeneral = 0;
-
-    productos.forEach((p, index) => {
-        const fila = document.createElement('tr');
-
-        fila.innerHTML = `
-            <td><button type="button" class="btn btn-danger btn-sm eliminar" data-index="${index}">X</button></td>
-            <td>${p.nombre}</td>
-            <td><input type="number" min="1" max="${p.stock}" value="${p.cantidad}" class="form-control cantidad" data-index="${index}"></td>
-            <td>${parseFloat(p.precio).toFixed(2)}</td>
-            <td>${(p.precio * p.cantidad).toFixed(2)}</td>
-        `;
-
-        subtotalGeneral += p.precio * p.cantidad;
-        tbody.appendChild(fila);
-    });
-
-    const iva = subtotalGeneral * 0.12;
-    const total = subtotalGeneral + iva;
-
-    document.getElementById('subtotal').innerText = subtotalGeneral.toFixed(2);
-    document.getElementById('iva').innerText = iva.toFixed(2);
-    document.getElementById('total').innerText = total.toFixed(2);
-
-    document.getElementById('productos_json').value = JSON.stringify(productos);
-}
-
-document.getElementById('tabla_detalle').addEventListener('click', function(e) {
-    if (e.target.classList.contains('eliminar')) {
-        const index = e.target.dataset.index;
-        productos.splice(index, 1);
-        renderTabla();
-    }
-});
-
-document.getElementById('tabla_detalle').addEventListener('input', function(e) {
-    if (e.target.classList.contains('cantidad')) {
-        const index = e.target.dataset.index;
-        const nuevaCantidad = parseInt(e.target.value) || 1;
-        productos[index].cantidad = nuevaCantidad;
-        renderTabla();
-    }
-});
-</script>
-
 {% endblock %}
 
-<!-- SCRIPTS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+<!-- SCRIPTS GENERALES -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
 <script src="{% static 'libs/createjs.min.js' %}"></script>
 <script src="{% static 'libs/TweenMax.min.js' %}"></script>
 <script src="{% static 'js/particulas.js' %}"></script>
 
+<!-- BLOQUE PARA CÓDIGO EXTRA DE CADA PLANTILLA -->
+{% block scripts %}{% endblock %}
+
+
+</script>
+
 </body>
 </html>
 <script>
-    // Configuración del canvas para el fondo animado
+    // Fondo animado
     const canvas = document.getElementById('projector');
     const ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    // Lógica de las partículas (puedes personalizarla según tus necesidades)
     function drawParticles() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        // Aquí iría la lógica para dibujar las partículas
         requestAnimationFrame(drawParticles);
     }
-
     drawParticles();
