@@ -118,4 +118,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'miapp/static'),
+    
+
+
 ]
+# Configuración de autenticación
+LOGIN_URL = '/accounts/login/'
+LOGIN_REDIRECT_URL = '/producto/crear/'
+LOGOUT_REDIRECT_URL = '/accounts/login/'

@@ -2,20 +2,20 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Sistema de Ventas</title>
 
     <!-- Bootstrap -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
 
     <!-- Bootstrap Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet" />
 
     <!-- CSS Personalizados -->
-    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
-    <link rel="stylesheet" href="{% static 'css/body.css' %}">
-    <link rel="stylesheet" href="{% static 'css/estilos.css' %}">
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/body.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/estilos.css' %}" />
 
     <!-- Select2 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -25,12 +25,15 @@
             background-color: #585252;
             color: #fff;
         }
-        input, select, textarea {
+        input,
+        select,
+        textarea {
             background-color: #ffffff !important;
             color: #000000 !important;
             border: 1px solid #555 !important;
         }
-        html, body {
+        html,
+        body {
             height: auto !important;
             min-height: 100%;
             overflow-y: auto !important;
@@ -49,108 +52,133 @@
 </head>
 
 <body class="cars">
-<canvas id="projector"></canvas>
+    <canvas id="projector"></canvas>
 
-<!-- NAVBAR -->
-{% block navbar %}
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="#">
-            <img src="{% static 'img/hot_wheels.png' %}" alt="Logo" width="90" height="60">
-        </a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+    <!-- NAVBAR -->
+    {% block navbar %}
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <img src="{% static 'img/libro.png' %}" alt="Logo" width="90" height="60" />
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent">
+                <span class="navbar-toggler-icon"></span>
+            </button>
 
-        <div class="collapse navbar-collapse" id="navbarSupportedContent">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                <li class="nav-item"><a class="nav-link" href="{% url 'index' %}">Inicio</a></li>
-                <!-- Menús desplegables -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Cliente</a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{% url 'consultar_cliente' %}">Consultar Cliente</a></li>
-                        <li><a class="dropdown-item" href="{% url 'crear_cliente' %}">Crear Cliente</a></li>
-                    </ul>
-                </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Libro</a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{% url 'crear_producto' %}">Crear Libro</a></li>
-                        <li><a class="dropdown-item" href="{% url 'consultar_producto' %}">Consultar Libro</a></li>
-                    </ul>
-                </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Descuento</a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{% url 'consultar_descuento' %}">Consultar Descuento</a></li>
-                        <li><a class="dropdown-item" href="{% url 'crear_descuento' %}">Crear Descuento</a></li>
-                    </ul>
-                </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Proveedor</a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{% url 'consultar_proveedor' %}">Consultar Proveedor</a></li>
-                        <li><a class="dropdown-item" href="{% url 'crear_proveedor' %}">Crear Proveedor</a></li>
-                    </ul>
-                </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Cotizacion</a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{% url 'crear_cotizacion' %}">Crear Cotizacion</a></li>
-                        <li><a class="dropdown-item" href="{% url 'consultar_cotizacion' %}">Consultar Cotizacion</a></li>
-                    </ul>
-                </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Factura</a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{% url 'consultar_factura' %}">Consultar Factura</a></li>
-                        <li><a class="dropdown-item" href="{% url 'crear_factura' %}">Crear Factura</a></li>
-                    </ul>
-                </li>
-            </ul>
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item"><a class="nav-link" href="{% url 'index' %}">Inicio</a></li>
+                    <!-- Menús desplegables -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Cliente</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'consultar_cliente' %}">Consultar Cliente</a></li>
+                            <li><a class="dropdown-item" href="{% url 'crear_cliente' %}">Crear Cliente</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Libro</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'crear_producto' %}">Crear Libro</a></li>
+                            <li><a class="dropdown-item" href="{% url 'consultar_producto' %}">Consultar Libro</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Descuento</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'consultar_descuento' %}">Consultar Descuento</a></li>
+                            <li><a class="dropdown-item" href="{% url 'crear_descuento' %}">Crear Descuento</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Proveedor</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'consultar_proveedor' %}">Consultar Proveedor</a></li>
+                            <li><a class="dropdown-item" href="{% url 'crear_proveedor' %}">Crear Proveedor</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Cotizacion</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'crear_cotizacion' %}">Crear Cotizacion</a></li>
+                            <li><a class="dropdown-item" href="{% url 'consultar_cotizacion' %}">Consultar Cotizacion</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Factura</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'consultar_factura' %}">Consultar Factura</a></li>
+                            <li><a class="dropdown-item" href="{% url 'crear_factura' %}">Crear Factura</a></li>
+                        </ul>
+                    </li>
+                </ul>
 
-            <form class="d-flex">
-                <input class="form-control me-2 bg-dark text-light" type="search" placeholder="Buscar">
-                <button class="btn btn-outline-success" type="submit">Consultar</button>
-            </form>
+                <!-- Login/Register links -->
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    {% if user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Hola, {{ user.username }}</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'logout' %}">Cerrar sesión</a>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'login' %}">Iniciar sesión</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'register' %}">Registrarse</a>
+                    </li>
+                    {% endif %}
+                </ul>
+
+                <form class="d-flex">
+                    <input class="form-control me-2 bg-dark text-light" type="search" placeholder="Buscar" />
+                    <button class="btn btn-outline-success" type="submit">Consultar</button>
+                </form>
+            </div>
+        </div>
+    </nav>
+    {% endblock %}
+
+    <!-- CONTENIDO PRINCIPAL -->
+    {% block main %}
+    <h1 class="text-center my-4">Bienvenido al sistema web</h1>
+    <div class="container">
+        <div class="row text-center">
+            <div class="col mio-div-grid">
+                Hotwheels
+                <img src="{% static 'img/libro.png' %}" alt="libros" width="100" />
+                <div class="description-grid">
+                    <p>125</p>
+                </div>
+            </div>
+            <div class="col mio-div-grid">
+                Clientes
+                <img src="{% static 'img/cliente.png' %}" alt="Clientes" width="100" />
+                <div class="description-grid">
+                    <p>125</p>
+                </div>
+            </div>
+            <div class="col mio-div-grid">
+                Empleados
+                <img src="{% static 'img/empleado.png' %}" alt="Empleados" width="100" />
+                <div class="description-grid">
+                    <p>125</p>
+                </div>
+            </div>
         </div>
     </div>
-</nav>
-{% endblock %}
+    {% endblock %}
 
-<!-- CONTENIDO PRINCIPAL -->
-{% block main %}
-<h1 class="text-center my-4">Bienvenido al sistema web</h1>
-<div class="container">
-    <div class="row text-center">
-        <div class="col mio-div-grid">
-            Hotwheels
-            <img src="{% static 'img/hot_wheels.png' %}" alt="Hotwheels" width="100">
-            <div class="description-grid"><p>125</p></div>
-        </div>
-        <div class="col mio-div-grid">
-            Clientes
-            <img src="{% static 'img/clientes.png' %}" alt="Clientes" width="100">
-            <div class="description-grid"><p>125</p></div>
-        </div>
-        <div class="col mio-div-grid">
-            Empleados
-            <img src="{% static 'img/empleados.png' %}" alt="Empleados" width="100">
-            <div class="description-grid"><p>125</p></div>
-        </div>
-    </div>
-</div>
-{% endblock %}
+    <!-- SCRIPTS GENERALES -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
-<!-- SCRIPTS GENERALES -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-
-<script src="{% static 'libs/createjs.min.js' %}"></script>
-<script src="{% static 'libs/TweenMax.min.js' %}"></script>
-<script src="{% static 'js/particulas.js' %}"></script>
+    <script src="{% static 'libs/createjs.min.js' %}"></script>
+    <script src="{% static 'libs/TweenMax.min.js' %}"></script>
+    <script src="{% static 'js/particulas.js' %}"></script>
 
 <!-- BLOQUE PARA CÓDIGO EXTRA DE CADA PLANTILLA -->
 {% block scripts %}{% endblock %}

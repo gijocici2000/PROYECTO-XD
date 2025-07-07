@@ -1,6 +1,7 @@
 from django import forms
 from .models import *
 from django.forms import modelformset_factory
+from django.forms import inlineformset_factory
 
 
 
@@ -44,7 +45,11 @@ class ClienteForm(forms.ModelForm):
         
         }
 
+from django import forms
+from .models import Producto
+
 class ProductoForm(forms.ModelForm):
+    
     class Meta:
         model = Producto
         fields = [
@@ -55,25 +60,74 @@ class ProductoForm(forms.ModelForm):
             'categoria',
             'unidad',
             'precio',
+            'stock',
         ]
+
         widgets = {
-            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
-            'modelo': forms.TextInput(attrs={'class': 'form-control'}),
-            'color': forms.TextInput(attrs={'class': 'form-control'}),
-            'numero_serie': forms.TextInput(attrs={'class': 'form-control'}),
-            'categoria': forms.TextInput(attrs={'class': 'form-control'}),
-            'unidad': forms.TextInput(attrs={'class': 'form-control'}),
-            'precio': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'nombre': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ingrese el nombre del producto',
+                'maxlength': '20'
+            }),
+            'modelo': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Modelo del producto',
+                'maxlength': '40'
+            }),
+            'color': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Color',
+                'maxlength': '20'
+            }),
+            'numero_serie': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Número de serie',
+                'maxlength': '20'
+            }),
+            'categoria': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Categoría',
+                'maxlength': '20'
+            }),
+            'unidad': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej: Caja, Unidad, Paquete'
+            }),
+            'precio': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+                'placeholder': 'Precio en dólares'
+            }),
+            'stock': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '0',
+                'placeholder': 'Cantidad en stock'
+            }),
         }
+
         labels = {
             'nombre': 'Nombre:',
             'modelo': 'Modelo:',
             'color': 'Color:',
-            'numero_serie': 'Número de serie:',
+            'numero_serie': 'Número de Serie:',
             'categoria': 'Categoría:',
-            'unidad': 'Unidades:',
-            'precio': 'Precio unitario:',
+            'unidad': 'Unidades a ingresar:',
+            'precio': 'Precio Unitario ($):',
+            'stock': 'Stock Disponible:',
         }
+
+    def clean_precio(self):
+        precio = self.cleaned_data.get('precio')
+        if precio is not None and precio < 0:
+            raise forms.ValidationError("El precio no puede ser negativo.")
+        return precio
+
+    def clean_stock(self):
+        stock = self.cleaned_data.get('stock')
+        if stock is not None and stock < 0:
+            raise forms.ValidationError("El stock no puede ser negativo.")
+        return stock
 
 
 
@@ -103,10 +157,10 @@ class FacturaForm(forms.ModelForm):
 class FacturaDetalleForm(forms.ModelForm):
     class Meta:
         model = Factura_Detalle
-        fields = ['producto', 'cantidad', 'precio_factura', 'subtotal', 'descuento_total', 'iva', 'total_factura_valor']
+        fields = ['producto', 'cantidad_producto', 'precio_factura', 'subtotal', 'descuento_total', 'iva', 'total_factura_valor']
         widgets = {
             'producto': forms.Select(attrs={'class': 'form-select'}),
-            'cantidad': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
+            'cantidad_producto': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
             'precio_factura': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'readonly': True}),
             'subtotal': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'readonly': True}),
             'descuento_total': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
@@ -177,37 +231,47 @@ class DescuentoForm(forms.ModelForm):
 class CotizacionForm(forms.ModelForm):
     class Meta:
         model = Cotizacion
-        fields = ['sucursal', 'empleado', 'cliente', 'fecha_emision', 'fecha_vencimiento', 'comentario']
+        fields = ['sucursal', 'empleado', 'cliente', 'comentario']  # Quité fecha_emision y fecha_vencimiento
         widgets = {
             'sucursal': forms.Select(attrs={'class': 'form-select'}),
             'empleado': forms.Select(attrs={'class': 'form-select'}),
             'cliente': forms.Select(attrs={'class': 'form-select'}),
-            'fecha_emision': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
-            'fecha_vencimiento': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
             'comentario': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.update({'class': 'form-control'})
+
 
 class CotizacionDetalleForm(forms.ModelForm):
     class Meta:
         model = Cotizacion_Detalle
-        fields = ['producto', 'cantidad', 'precio_cotizacion', 'subtotal', 'descuento_total', 'iva', 'total_cotizacion_valor']
+        fields = ['producto', 'cantidad_producto', 'precio_cotizado', 'descuento_total', 'iva']  # Corrigí nombre campos según modelo
         widgets = {
             'producto': forms.Select(attrs={'class': 'form-select'}),
-            'cantidad': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
-            'precio_cotizacion': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'readonly': True}),
-            'subtotal': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'readonly': True}),
+            'cantidad_producto': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
+            'precio_cotizado': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'readonly': True}),
             'descuento_total': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'iva': forms.Select(attrs={'class': 'form-select'}),
-            'total_cotizacion_valor': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'readonly': True}),
+        }
+        labels = {
+            'producto': 'Producto:',
+            'cantidad_producto': 'Cantidad:',
+            'precio_cotizado': 'Precio Cotizado ($):',
+            'descuento_total': 'Descuento Total ($):',
+            'iva': 'IVA:',
         }
 
-CotizacionDetalleFormSet = modelformset_factory(
+
+CotizacionDetalleFormSet = inlineformset_factory(
+    Cotizacion,
     Cotizacion_Detalle,
     form=CotizacionDetalleForm,
     extra=1,
     can_delete=True
 )
-
 
 
 

@@ -1,7 +1,9 @@
 from django.db import models
 from django.utils import timezone
 from decimal import Decimal
-from django.db.models import Max
+from django.db.models import Max, Sum, F
+
+
 # ---------------------------administracion 
 # SUCURSAL
 # ---------------------------
@@ -134,16 +136,22 @@ class Producto(models.Model):
     nombre = models.CharField(max_length=20)
     modelo = models.CharField(max_length=40)
     color = models.CharField(max_length=20)
-    numero_serie = models.CharField(max_length=20)
+    numero_serie = models.CharField(max_length=20, unique=True)  # Evita duplicados
     categoria = models.CharField(max_length=20)
     unidad = models.CharField(max_length=255)
-    precio = models.FloatField(default=0)
-    stock=models.PositiveIntegerField()
-    fecha_creacion = models.DateTimeField(auto_now_add=True , )
-    fecha_modificacion = models.DateTimeField(auto_now=True , )
+    precio = models.DecimalField(max_digits=10, decimal_places=2, default= Decimal('0.00'))  # Más seguro que Float
+    stock = models.PositiveIntegerField()
+    
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_modificacion = models.DateTimeField(auto_now=True)
     creacion_usuario = models.CharField(max_length=50)
     modificacion_usuario = models.CharField(max_length=50)
-    estado = models.IntegerField(default=1)
+    
+    ESTADO_CHOICES = [
+        (1, 'Activo'),
+        (0, 'Inactivo'),
+    ]
+    estado = models.IntegerField(choices=ESTADO_CHOICES, default=1)
 
     class Meta:
         db_table = "producto"
@@ -151,9 +159,20 @@ class Producto(models.Model):
         verbose_name_plural = "productos"
 
     def __str__(self):
-        return self.nombre
-    
-
+        return f"{self.nombre} - {self.numero_serie}"
+    def precio_con_descuento(self):
+        ahora = timezone.now()
+        descuento_activo = Descuento.objects.filter(
+            producto=self,
+            estado=1,
+            fecha_inicio__lte=ahora,
+            fecha_final__gte=ahora
+        ).order_by('-fecha_inicio').first()
+        
+        if descuento_activo and descuento_activo.descuento > 0:
+            descuento_decimal = Decimal(descuento_activo.descuento) / Decimal('100')
+            return (self.precio * (Decimal('1') - descuento_decimal)).quantize(Decimal('0.01'))
+        return self.precio   
 
 class Descuento(models.Model):
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
@@ -192,78 +211,44 @@ class Iva(models.Model):
 # COTIZACIÓN Y DETALLES
 # ---------------------------
 class Cotizacion(models.Model):
-    cotizacion_codigo = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
     numero_cotizacion = models.CharField(max_length=20, unique=True, blank=True, null=True)
-    sucursal = models.ForeignKey(Sucursal, on_delete=models.RESTRICT)
-    empleado = models.ForeignKey(Empleado, on_delete=models.RESTRICT, blank=True, null=True)
     cliente = models.ForeignKey(Cliente, on_delete=models.RESTRICT)
+    empleado = models.ForeignKey(Empleado, on_delete=models.RESTRICT, blank=True, null=True)
+    sucursal = models.ForeignKey(Sucursal, on_delete=models.RESTRICT)
     
-    fecha_emision = models.DateTimeField(default=timezone.now)
-    fecha_vencimiento = models.DateTimeField(blank=True, null=True)
+    fecha_emision = models.DateTimeField(auto_now_add=True)
     comentario = models.TextField(blank=True, null=True)
-    
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
-    fecha_modificacion = models.DateTimeField(auto_now=True)
-    creacion_usuario = models.CharField(max_length=50)
-    modificacion_usuario = models.CharField(max_length=50)
-    estado = models.IntegerField(default=1)  # 1=Activa, 0=Anulada
-    
-    class Meta:
-        db_table = "cotizacion"
-        ordering = ["-fecha_creacion"]
+    creacion_usuario = models.CharField(max_length=150)
+    modificacion_usuario = models.CharField(max_length=150)
 
     def __str__(self):
-        return f"Cotización {self.numero_cotizacion or self.cotizacion_codigo} - {self.cliente}"
+        return f"Cotización {self.id} para {self.cliente.nombre}"
 
-    def save(self, *args, **kwargs):
-        if not self.numero_cotizacion:
-            max_id = Cotizacion.objects.aggregate(max_id=Max('cotizacion_codigo'))['max_id'] or 0
-            siguiente = max_id + 1
-            self.numero_cotizacion = f"C-{timezone.now().year}-{siguiente:05d}"
-        super().save(*args, **kwargs)
-
+    def get_totales(self):
+        detalles = self.detalles.all()  # type: ignore # Usamos related_name 'detalles'
+        subtotal = Decimal('0.00')
+        iva_total = Decimal('0.00')
+        for d in detalles:
+            subtotal += d.precio_cotizado * d.cantidad_producto
+            if d.iva:
+                iva_total += (d.precio_cotizado * d.cantidad_producto) * (d.iva.porcentaje / Decimal('100'))
+        total = subtotal + iva_total
+        return {
+            'subtotal': subtotal.quantize(Decimal('0.01')),
+            'iva_total': iva_total.quantize(Decimal('0.01')),
+            'total': total.quantize(Decimal('0.01'))
+        }
 
 class Cotizacion_Detalle(models.Model):
-    id = models.AutoField(primary_key=True)
-    cotizacion = models.ForeignKey(Cotizacion, on_delete=models.CASCADE, related_name="detalles")
+    cotizacion = models.ForeignKey(Cotizacion, on_delete=models.CASCADE, related_name='detalles')
     producto = models.ForeignKey(Producto, on_delete=models.RESTRICT)
-    cantidad = models.PositiveIntegerField(default=1)
-    precio_cotizacion = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))  # Precio congelado
-    subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
-    descuento_total = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
-    iva = models.ForeignKey(Iva, on_delete=models.RESTRICT, )
-
-    total_cotizacion_valor = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
-
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
-    fecha_modificacion = models.DateTimeField(auto_now=True)
-    creacion_usuario = models.CharField(max_length=50)
-    modificacion_usuario = models.CharField(max_length=50)
-    estado = models.IntegerField(choices=[(1, 'Activo'), (0, 'Anulado')], default=1)
-
-    @property
-    def subtotal_calculado(self):
-        return Decimal(str(self.precio_cotizacion)) * self.cantidad
-
-    @property
-    def iva_total(self):
-        return Decimal(str(self.subtotal)) * Decimal(str(self.iva.porcentaje)) / 100
-
-    @property
-    def total_calculado(self):
-        return Decimal(str(self.subtotal)) + self.iva_total
-
-    class Meta:
-        db_table = "cotizacion_detalle"
-        verbose_name = "Detalle de Cotización"
-        verbose_name_plural = "Detalles de Cotización"
-
-    def __str__(self):
-        return f"{self.producto.nombre} - {self.cantidad} unidades"
-
-
-
-   
+    cantidad_producto = models.PositiveIntegerField()
+    precio_cotizado = models.DecimalField(max_digits=10, decimal_places=2)
+    descuento_total = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
+    iva = models.ForeignKey(Iva, on_delete=models.RESTRICT, blank=True, null=True)
+    creacion_usuario = models.CharField(max_length=150)
+    modificacion_usuario = models.CharField(max_length=150)
 # ---------------------------
 # FACTURA Y DETALLES
 # ---------------------------
@@ -277,7 +262,7 @@ class Factura(models.Model):
     tipo_pago = models.CharField(max_length=20, choices=[
         ('contado', 'Contado'),
         ('credito', 'Crédito'),
-        ('transferencia', 'Transferencia Bancaria'),
+        ('transferencia', 'Transferencia Bancaria'), 
     ], default='contado')
 
     fecha_emision = models.DateTimeField(default=timezone.now)
@@ -293,28 +278,37 @@ class Factura(models.Model):
     class Meta:
         db_table = "factura"
         ordering = ["-fecha_creacion"]
-
+  
     def __str__(self):
         return f"Factura {self.numero_factura or self.factura_codigo} - {self.cliente}"
 
-    # AQUÍ va el método save:
     def save(self, *args, **kwargs):
         if not self.numero_factura:
             max_id = Factura.objects.aggregate(max_id=Max('factura_codigo'))['max_id'] or 0
             siguiente = max_id + 1
             self.numero_factura = f"F-{timezone.now().year}-{siguiente:05d}"
-        
         super().save(*args, **kwargs)
 
    
-
+    @property
+    def get_totales(self):
+        detalles = self.detalles.filter(estado=1) # type: ignore
+        subtotal = detalles.aggregate(suma=Sum('subtotal'))['suma'] or Decimal('0.00')
+        iva_total = sum(d.iva_total for d in detalles)
+        total = subtotal + iva_total
+        return {
+            'subtotal': subtotal,
+            'iva_total': iva_total,
+            'total': total
+        }
+    
 
 
 class Factura_Detalle(models.Model):
     id = models.AutoField(primary_key=True)
     factura = models.ForeignKey(Factura, on_delete=models.CASCADE, related_name="detalles")
     producto = models.ForeignKey(Producto, on_delete=models.RESTRICT)
-    cantidad = models.PositiveIntegerField(default=1)
+    cantidad_producto = models.PositiveIntegerField(default=1)
     precio_factura = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))  # Precio congelado
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     descuento_total = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
@@ -327,9 +321,18 @@ class Factura_Detalle(models.Model):
     modificacion_usuario = models.CharField(max_length=50)
     estado = models.IntegerField(choices=[(1, 'Activo'), (0, 'Anulado')], default=1)
 
+    class Meta:
+        db_table = "factura_detalle"
+        verbose_name = "Detalle de Factura"
+        verbose_name_plural = "Detalles de Factura"
+
+    def __str__(self):
+        return f"{self.producto.nombre} - {self.cantidad_producto} unidades"
+    
+
     @property
     def subtotal_calculado(self):
-        return Decimal(str(self.precio_factura)) * self.cantidad
+        return Decimal(str(self.precio_factura)) * self.cantidad_producto
 
     @property
     def iva_total(self):
@@ -339,12 +342,8 @@ class Factura_Detalle(models.Model):
     def total_calculado(self):
         return Decimal(str(self.subtotal)) + self.iva_total
 
-    class Meta:
-        db_table = "factura_detalle"
-        verbose_name = "Detalle de Factura"
-        verbose_name_plural = "Detalles de Factura"
-
-    def __str__(self):
-        return f"{self.producto.nombre} - {self.cantidad} unidades"
-
-
+    def save(self, *args, **kwargs):
+        # Actualiza subtotal y total antes de guardar
+        self.subtotal = self.subtotal_calculado
+        self.total_factura_valor = self.total_calculado
+        super().save(*args, **kwargs)

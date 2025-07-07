@@ -1,25 +1,82 @@
+{% extends "index.html" %}
+{% load static %}
 
-{%block content%}
-    <h1>consultar_cliente</h1>
-    <table>
-<head>
-    
-    <tr>
-        <th>id</th>
-        <th>nombre</th>
-</head>
-    </tr>
-<body>
-    <tr>
-<td></td>
-<td></td>
-<td></td>    
-<td></td>
-<td></td>
-    </table>
+{% block main %}
+<div class="container my-4">
 
+    <h2 class="mb-4 text-center">Consultar Cotizaciones</h2>
 
-</tr>
-</body>
-</table>
-¨{% endblock %}
+    <form method="post" class="row g-3 mb-4" style="background-color:#d4f1f9; padding:15px; border-radius:10px;">
+        {% csrf_token %}
+
+        <div class="col-md-4">
+            <label for="id_cliente_nombre" class="form-label">Nombre o Cédula Cliente</label>
+            <input type="text" name="cliente_nombre" id="id_cliente_nombre" class="form-control" value="{{ request.POST.cliente_nombre }}">
+        </div>
+
+        <div class="col-md-3">
+            <label for="id_desde" class="form-label">Fecha Desde</label>
+            <input type="date" name="desde" id="id_desde" class="form-control" value="{{ request.POST.desde }}">
+        </div>
+
+        <div class="col-md-3">
+            <label for="id_hasta" class="form-label">Fecha Hasta</label>
+            <input type="date" name="hasta" id="id_hasta" class="form-control" value="{{ request.POST.hasta }}">
+        </div>
+
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" name="buscar_cotizacion" class="btn btn-primary w-100 me-2">Buscar</button>
+            <button type="submit" name="exportar_cotizacion" class="btn btn-danger w-100">Exportar PDF</button>
+        </div>
+    </form>
+
+    {% if cotizaciones %}
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped align-middle">
+            <thead class="table-dark text-center">
+                <tr>
+                    <th>#</th>
+                    <th>ID Cotización</th>
+                    <th>Cliente</th>
+                    <th>Empleado</th>
+                    <th>Sucursal</th>
+                    <th>Fecha Emisión</th>
+                    <th>Comentario</th>
+                    <th>Total Calculado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in cotizaciones %}
+                <tr>
+                    <td class="text-center">{{ forloop.counter }}</td>
+                    <td class="text-center">{{ c.id }}</td>
+                    <td>{{ c.cliente.nombre }}</td>
+                    <td>{% if c.empleado %}{{ c.empleado.nombre }}{% else %}N/A{% endif %}</td>
+                    <td>{{ c.sucursal.nombre }}</td>
+                    <td>{{ c.fecha_emision|date:"d/m/Y H:i" }}</td>
+                    <td>{{ c.comentario|default:"-" }}</td>
+                    <td class="text-end">{{ c.total_calculado|default:"0.00"|floatformat:2 }}</td>
+                    <td class="text-center">
+                        <form action="{% url 'eliminar_cotizacion' c.id %}" method="post" style="display:inline;" onsubmit="return confirm('¿Está seguro que desea eliminar esta cotización?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-danger" title="Eliminar">
+                                <i class="bi bi-trash"></i> Eliminar
+                            </button>
+                        </form>
+
+                        <a href="{% url 'exportar_pdf_cotizacion' c.id %}" class="btn btn-sm btn-info ms-1" title="Descargar PDF" target="_blank">
+                            <i class="bi bi-file-earmark-pdf"></i> PDF
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <div class="alert alert-info text-center">No se encontraron cotizaciones.</div>
+    {% endif %}
+
+</div>
+{% endblock %}

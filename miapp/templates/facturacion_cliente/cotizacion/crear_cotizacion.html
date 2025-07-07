@@ -1,1 +1,274 @@
-¨{%extend."index.html"%}
+{% extends 'index.html' %}
+{% load static %}
+
+{% block main %}
+<div class="container my-4 p-4 rounded" style="background-color: #308a9e;">
+    <h2>Crear Cotización</h2>
+
+    <form method="post" id="cotizacionForm">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label><b>Buscar Cliente</b></label>
+            <input type="text" id="buscador-cliente" class="form-control" placeholder="Nombre o cédula" autocomplete="off">
+            <div id="resultados-cliente" class="list-group mt-1"></div>
+            <input type="hidden" name="cliente_id" id="cliente-id" required>
+        </div>
+
+        <div class="mb-3">
+            <label><b>Buscar Empleado</b></label>
+            <input type="text" id="buscador-empleado" class="form-control" placeholder="Nombre o cargo" autocomplete="off">
+            <div id="resultados-empleado" class="list-group mt-1"></div>
+            <input type="hidden" name="empleado_id" id="empleado-id">
+        </div>
+
+        <div class="mb-3">
+            <label><b>Buscar Sucursal</b></label>
+            <input type="text" id="buscador-sucursal" class="form-control" placeholder="Nombre o dirección" autocomplete="off">
+            <div id="resultados-sucursal" class="list-group mt-1"></div>
+            <input type="hidden" name="sucursal_id" id="sucursal-id" required>
+        </div>
+
+        <hr>
+        <h4>Detalle de Productos</h4>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Producto</th><th>Precio</th><th>Cantidad</th><th>Subtotal</th><th>IVA</th><th>Total</th><th>Acción</th>
+                </tr>
+            </thead>
+            <tbody id="detalle-productos"></tbody>
+        </table>
+
+        <div class="mb-3">
+            <label><b>Buscar Producto</b></label>
+            <input type="text" id="buscador-producto" class="form-control" placeholder="Nombre o serie" autocomplete="off">
+            <div id="resultados-producto" class="list-group mt-1"></div>
+        </div>
+
+        <div class="row g-2 mb-3">
+            <div class="col">
+                <input type="number" id="cantidad" class="form-control" placeholder="Cantidad" min="1" value="1">
+            </div>
+            <div class="col">
+                <select id="iva-select" class="form-select">
+                    {% for iva in ivas %}
+                        <option value="{{ iva.id }}" data-porcentaje="{{ iva.porcentaje }}">{{ iva.nombre }} - {{ iva.porcentaje }}%</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col">
+                <button type="button" id="btn-agregar" class="btn btn-success" disabled>Agregar</button>
+            </div>
+        </div>
+
+        <input type="hidden" name="productos_json" id="productos_json">
+
+        <div class="mb-3">
+            <label><b>Comentario</b></label>
+            <textarea name="comentario" class="form-control" rows="2"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Guardar Cotización</button>
+    </form>
+</div>
+
+<script>
+const productos = JSON.parse('{{ productos_json|escapejs }}');
+const clientes = JSON.parse('{{ clientes_json|escapejs }}');
+const empleados = JSON.parse('{{ empleados_json|escapejs }}');
+const sucursales = JSON.parse('{{ sucursales_json|escapejs }}');
+
+let productoSeleccionado = null;
+let productosCotizacion = [];
+
+function configurarBuscador(inputId, resultadosId, datos, callback, campos) {
+    const input = document.getElementById(inputId);
+    const resultados = document.getElementById(resultadosId);
+
+    input.addEventListener('input', () => {
+        if(inputId === 'buscador-producto') {
+            btnAgregar.disabled = true;
+            productoSeleccionado = null;
+        }
+
+        const q = input.value.toLowerCase().trim();
+        resultados.innerHTML = '';
+        if (!q) return;
+
+        const filtrados = datos.filter(d => campos.some(c => (d[c] || '').toLowerCase().includes(q)));
+        if (filtrados.length === 0) {
+            resultados.innerHTML = '<div class="list-group-item disabled">Sin resultados</div>';
+            return;
+        }
+
+        filtrados.forEach(d => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'list-group-item list-group-item-action';
+            btn.textContent = campos.map(c => d[c] || '').join(' - ');
+            btn.onclick = () => {
+                callback(d);
+                resultados.innerHTML = '';
+            };
+            resultados.appendChild(btn);
+        });
+    });
+}
+
+// Buscadores
+configurarBuscador('buscador-cliente', 'resultados-cliente', clientes, c => {
+    document.getElementById('buscador-cliente').value = c.nombre;
+    document.getElementById('cliente-id').value = c.id;
+}, ['nombre', 'cedula']);
+
+configurarBuscador('buscador-empleado', 'resultados-empleado', empleados, e => {
+    document.getElementById('buscador-empleado').value = e.nombre;
+    document.getElementById('empleado-id').value = e.id;
+}, ['nombre', 'cargo']);
+
+configurarBuscador('buscador-sucursal', 'resultados-sucursal', sucursales, s => {
+    document.getElementById('buscador-sucursal').value = s.nombre;
+    document.getElementById('sucursal-id').value = s.id;
+}, ['nombre', 'direccion']);
+
+const btnAgregar = document.getElementById('btn-agregar');
+configurarBuscador('buscador-producto', 'resultados-producto', productos, p => {
+    productoSeleccionado = p;
+    document.getElementById('buscador-producto').value = p.nombre;
+    btnAgregar.disabled = false;
+}, ['nombre', 'numero_serie']);
+
+btnAgregar.addEventListener('click', () => {
+    if (!productoSeleccionado) {
+        alert("Seleccione un producto.");
+        return;
+    }
+    const cantidadInput = document.getElementById('cantidad');
+    let cantidad = parseInt(cantidadInput.value);
+    if (isNaN(cantidad) || cantidad < 1) {
+        alert("Ingrese una cantidad válida.");
+        return;
+    }
+
+    // Validar stock si quieres (opcional)
+    if (productoSeleccionado.stock !== undefined && cantidad > productoSeleccionado.stock) {
+        alert(`La cantidad no puede ser mayor al stock disponible (${productoSeleccionado.stock}).`);
+        cantidad = productoSeleccionado.stock;
+        cantidadInput.value = cantidad;
+    }
+
+    const ivaSelect = document.getElementById('iva-select');
+    const ivaPct = parseFloat(ivaSelect.selectedOptions[0].dataset.porcentaje);
+    const ivaId = ivaSelect.value;
+    const precio = parseFloat(productoSeleccionado.precio);
+    const subtotal = precio * cantidad;
+    const ivaValor = subtotal * (ivaPct / 100);
+    const total = subtotal + ivaValor;
+
+    // Evitar productos duplicados: sumar cantidad si ya existe
+    const idx = productosCotizacion.findIndex(p => p.id === productoSeleccionado.id);
+    if (idx >= 0) {
+        productosCotizacion[idx].cantidad += cantidad;
+        productosCotizacion[idx].subtotal = (productosCotizacion[idx].precio * productosCotizacion[idx].cantidad).toFixed(2);
+        productosCotizacion[idx].iva_valor = (productosCotizacion[idx].subtotal * (ivaPct / 100)).toFixed(2);
+        productosCotizacion[idx].total = (parseFloat(productosCotizacion[idx].subtotal) + parseFloat(productosCotizacion[idx].iva_valor)).toFixed(2);
+    } else {
+        productosCotizacion.push({
+            id: productoSeleccionado.id,
+            nombre: productoSeleccionado.nombre,
+            precio: precio,
+            cantidad: cantidad,
+            subtotal: subtotal.toFixed(2),
+            iva_valor: ivaValor.toFixed(2),
+            iva_id: ivaId,
+            total: total.toFixed(2)
+        });
+    }
+
+    actualizarTabla();
+    productoSeleccionado = null;
+    document.getElementById('buscador-producto').value = '';
+    btnAgregar.disabled = true;
+    cantidadInput.value = 1;
+    ivaSelect.selectedIndex = 0;
+});
+
+function actualizarTabla() {
+    const tbody = document.getElementById('detalle-productos');
+    tbody.innerHTML = productosCotizacion.map((p, i) => `
+        <tr>
+            <td>${p.nombre}</td>
+            <td>${parseFloat(p.precio).toFixed(2)}</td>
+            <td>${p.cantidad}</td>
+            <td>${p.subtotal}</td>
+            <td>${p.iva_valor}</td>
+            <td>${p.total}</td>
+            <td><button class="btn btn-danger btn-sm" type="button" onclick="eliminarProducto(${i})">Eliminar</button></td>
+        </tr>
+    `).join('');
+
+    document.getElementById('productos_json').value = JSON.stringify(productosCotizacion);
+}
+
+function eliminarProducto(i) {
+    if (confirm("¿Eliminar este producto?")) {
+        productosCotizacion.splice(i, 1);
+        actualizarTabla();
+    }
+}
+
+// Ocultar resultados si se hace clic fuera
+document.addEventListener('click', e => {
+    const buscadores = [
+        {input: 'buscador-cliente', resultados: 'resultados-cliente'},
+        {input: 'buscador-empleado', resultados: 'resultados-empleado'},
+        {input: 'buscador-sucursal', resultados: 'resultados-sucursal'},
+        {input: 'buscador-producto', resultados: 'resultados-producto'},
+    ];
+
+    buscadores.forEach(({input, resultados}) => {
+        const cont = document.getElementById(resultados);
+        const inp = document.getElementById(input);
+        if (cont && inp && !cont.contains(e.target) && e.target !== inp) {
+            cont.innerHTML = '';
+        }
+    });
+});
+
+// Enviar formulario con fetch y validar campos
+document.getElementById('cotizacionForm').addEventListener('submit', e => {
+    e.preventDefault();
+
+    if (!document.getElementById('cliente-id').value) {
+        alert("Seleccione un cliente.");
+        return;
+    }
+    if (!document.getElementById('sucursal-id').value) {
+        alert("Seleccione una sucursal.");
+        return;
+    }
+    if (productosCotizacion.length === 0) {
+        alert("Agregue al menos un producto.");
+        return;
+    }
+
+    const formData = new FormData(e.target);
+    fetch("", {
+        method: "POST",
+        body: formData,
+        headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            window.open(data.pdf_url, "_blank");
+            window.location.href = "{% url 'consultar_cotizacion' %}";
+        } else {
+            alert(data.error || "Error en el servidor.");
+        }
+    })
+    .catch(() => alert("Error en la solicitud."));
+});
+</script>
+{% endblock %}

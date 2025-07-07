@@ -1,66 +1,95 @@
 {% extends 'index.html' %}
 
 {% block main %}
-<h2 class="text-center mb-4 text-primary"><b>Consultar producto</b></h2>
+<div class="container my-4">
 
-<form method="post" class="mb-4">
+  <h2 class="text-center mb-4 text-primary"><b>Consultar Productos</b></h2>
+
+  <!-- Formulario de Búsqueda -->
+  <form method="post" class="border rounded p-4 mb-4" style="background-color: #308a9e;">
     {% csrf_token %}
-    <div class="row g-2 align-items-end">
-      <div class="col-md-4">{{ buscador_Producto.nombre.label_tag }} {{ buscador_Producto.nombre }}</div>
-      <div class="col-md-4">{{ buscador_Producto.modelo.label_tag }} {{ buscador_Producto.modelo }}</div>
-      <div class="col-md-4">{{ buscador_Producto.numero_serie.label_tag }} {{ buscador_Producto.numero_serie }}</div>
-      <div class="col-md-4">{{ buscador_Producto.fecha.label_tag }} {{ buscador_Producto.fecha }}</div>
-      <div class="col-md-2">
-        <button type="submit" name="buscar_producto" value="Buscar producto" class="btn btn-primary w-100 mb-2">
+    
+    <div class="row g-3 align-items-end text-light">
+      
+      <div class="col-md-3">
+        {{ buscador_Producto.nombre.label_tag }} 
+        {{ buscador_Producto.nombre }}
+      </div>
+
+      <div class="col-md-3">
+        {{ buscador_Producto.modelo.label_tag }} 
+        {{ buscador_Producto.modelo }}
+      </div>
+
+      <div class="col-md-3">
+        {{ buscador_Producto.numero_serie.label_tag }} 
+        {{ buscador_Producto.numero_serie }}
+      </div>
+
+      <div class="col-md-3">
+        {{ buscador_Producto.fecha_creacion.label_tag }} 
+        {{ buscador_Producto.fecha_creacion }}
+      </div>
+
+      <div class="col-md-2 mt-3">
+        <button type="submit" name="buscar_producto" value="Buscar producto" class="btn btn-success w-100">
           <i class="fas fa-search"></i> Buscar
         </button>
       </div>
-      <div class="col-md-2">
-        <button type="submit" name="exportar_producto" value="Exportar Pdf" class="btn btn-danger w-100 mb-2">
+
+      <div class="col-md-2 mt-3">
+        <button type="submit" name="exportar_producto" value="Exportar Pdf" class="btn btn-danger w-100">
           <i class="fa-solid fa-file-pdf"></i> PDF
         </button>
       </div>
     </div>
-</form>
+  </form>
 
-<div class="tables-container">
-  <table class="table table-striped table-hover">
-    <thead class="table-primary">
-      <tr>
-        <th scope="col">Nombre</th>
-        <th scope="col">Modelo</th>
-        <th scope="col">Número de serie</th>
-        <th scope="col">Categoría</th>
-        <th scope="col">Color</th>
-        <th scope="col">Unidad</th>
-        <th scope="col">Precio</th>
-        <th scope="col">Modificar</th>
-        <th scope="col">Eliminar</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% if productos %}
-        {% for f in productos %}
+  <!-- Tabla de Resultados -->
+  <div class="table-responsive">
+    <table class="table table-striped table-hover">
+      <thead class="table-primary text-center">
         <tr>
-          <td>{{ f.nombre }}</td>
-          <td>{{ f.modelo }}</td>
-          <td>{{ f.numero_serie }}</td>
-          <td>{{ f.categoria }}</td>
-          <td>{{ f.color }}</td>
-          <td>{{ f.unidad }}</td>
-          <td>{{ f.precio }}</td>
-          <td>
-            <a href="{% url 'modificar_producto' f.id %}" class="btn btn-info btn-sm">Modificar</a>
-          </td>
-          <td>
-            <a href="{% url 'eliminar_producto' f.id %}" class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Estás seguro de eliminar este descuento?')">Eliminar</a>
-          </td>
+          <th>Nombre</th>
+          <th>Modelo</th>
+          <th>Número de Serie</th>
+          <th>Categoría</th>
+          <th>Color</th>
+          <th>Unidad</th>
+          <th>Precio</th>
+          <th>Stock</th>
+          <th>Modificar</th>
+          <th>Eliminar</th>
         </tr>
-        {% endfor %}
-      {% else %}
-        <tr><td colspan="9" class="text-center">No hay productos para mostrar.</td></tr>
-      {% endif %}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {% if productos %}
+          {% for f in productos %}
+          <tr class="text-center">
+            <td>{{ f.nombre }}</td>
+            <td>{{ f.modelo }}</td>
+            <td>{{ f.numero_serie }}</td>
+            <td>{{ f.categoria }}</td>
+            <td>{{ f.color }}</td>
+            <td>{{ f.unidad }}</td>
+            <td>${{ f.precio }}</td>
+            <td><span class="badge bg-info text-dark">{{ f.stock }}</span></td>
+            <td>
+              <a href="{% url 'modificar_producto' f.id %}" class="btn btn-info btn-sm">Modificar</a>
+            </td>
+            <td>
+              <a href="{% url 'eliminar_producto' f.id %}" class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Estás seguro de eliminar este producto?')">Eliminar</a>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="10" class="text-center">No hay productos para mostrar.</td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
 </div>
 {% endblock %}
