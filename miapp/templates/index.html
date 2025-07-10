@@ -116,26 +116,32 @@
                 <!-- Login/Register links -->
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                     {% if user.is_authenticated %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">Hola, {{ user.username }}</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'logout' %}">Cerrar sesión</a>
-                    </li>
+                        <li class="nav-item">
+                            <span class="nav-link disabled">👋 Hola, {{ user.username }}</span>
+                        </li>
+
+                        {% if user.cargo.nombre == "admin" or user.cargo.nombre == "gerente" %}
+                            <li class="nav-item">
+                                <a class="nav-link btn btn-outline-light mx-2" href="{% url 'register' %}">
+                                    ➕ Registrar usuario
+                                </a>
+                            </li>
+                        {% endif %}
+
+                        <li class="nav-item">
+                            <a class="nav-link btn btn-outline-danger" href="{% url 'logout' %}">
+                                🔒 Cerrar sesión
+                            </a>
+                        </li>
                     {% else %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'login' %}">Iniciar sesión</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'register' %}">Registrarse</a>
-                    </li>
+                        <li class="nav-item">
+                            <a class="nav-link btn btn-outline-primary" href="{% url 'login' %}">
+                                🔑 Iniciar sesión
+                            </a>
+                        </li>
                     {% endif %}
                 </ul>
 
-                <form class="d-flex">
-                    <input class="form-control me-2 bg-dark text-light" type="search" placeholder="Buscar" />
-                    <button class="btn btn-outline-success" type="submit">Consultar</button>
-                </form>
             </div>
         </div>
     </nav>
@@ -180,23 +186,8 @@
     <script src="{% static 'libs/TweenMax.min.js' %}"></script>
     <script src="{% static 'js/particulas.js' %}"></script>
 
-<!-- BLOQUE PARA CÓDIGO EXTRA DE CADA PLANTILLA -->
-{% block scripts %}{% endblock %}
-
-
-</script>
+    <!-- BLOQUE PARA CÓDIGO EXTRA DE CADA PLANTILLA -->
+    {% block scripts %}{% endblock %}
 
 </body>
 </html>
-<script>
-    // Fondo animado
-    const canvas = document.getElementById('projector');
-    const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    function drawParticles() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        requestAnimationFrame(drawParticles);
-    }
-    drawParticles();

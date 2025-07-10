@@ -1,0 +1,9 @@
+{% extends 'index.html' %}
+
+{% block main %}
+<div class="container mt-5 text-center text-danger">
+    <h1>🚫 No autorizado</h1>
+    <p>No tienes permisos para acceder a esta página.</p>
+    <a href="{% url 'index' %}" class="btn btn-primary mt-3">Volver al inicio</a>
+</div>
+{% endblock %}

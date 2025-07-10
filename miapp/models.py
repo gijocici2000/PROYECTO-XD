@@ -2,6 +2,7 @@ from django.db import models
 from django.utils import timezone
 from decimal import Decimal
 from django.db.models import Max, Sum, F
+from django.contrib.auth.models import User
 
 
 # ---------------------------administracion 
@@ -59,7 +60,8 @@ class Empleado(models.Model):
     nombre = models.CharField(max_length=20)
     apellido = models.CharField(max_length=20)
     cedula = models.CharField(max_length=12)
-    cargo = models.ForeignKey(Cargo, on_delete=models.CASCADE)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
+    cargo = models.ForeignKey(Cargo, on_delete=models.PROTECT) 
     correo = models.EmailField(max_length=40, default="@") 
     telefono = models.CharField(max_length=12) 
     fecha_creacion = models.DateTimeField(auto_now_add=True , )
@@ -73,9 +75,11 @@ class Empleado(models.Model):
         verbose_name = "empleado"
         verbose_name_plural = "empleados"
 
+   
+    
     def __str__(self):
-        return f'{self.nombre} {self.apellido} {self.cargo}'
-
+        username = self.user.username if self.user else "Sin usuario"
+        return f"{username} - {self.cargo.nombre}"
 
 # ---------------------------
 # CLIENTES Y PROVEEDORES
@@ -133,12 +137,13 @@ class Proveedor(models.Model):
 # ---------------------------
 
 class Producto(models.Model):
-    nombre = models.CharField(max_length=20)
-    modelo = models.CharField(max_length=40)
-    color = models.CharField(max_length=20)
-    numero_serie = models.CharField(max_length=20, unique=True)  # Evita duplicados
+    numero_serie = models.CharField(max_length=100, unique=True,)
+    nombre = models.CharField(max_length=100)
+    modelo = models.CharField(max_length=100)
+    color = models.CharField(max_length=50)
+   
     categoria = models.CharField(max_length=20)
-    unidad = models.CharField(max_length=255)
+    cantidad_ingresar = models.CharField(max_length=255)
     precio = models.DecimalField(max_digits=10, decimal_places=2, default= Decimal('0.00'))  # Más seguro que Float
     stock = models.PositiveIntegerField()
     
@@ -173,6 +178,24 @@ class Producto(models.Model):
             descuento_decimal = Decimal(descuento_activo.descuento) / Decimal('100')
             return (self.precio * (Decimal('1') - descuento_decimal)).quantize(Decimal('0.01'))
         return self.precio   
+
+class HistorialProducto(models.Model):
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    usuario = models.CharField(max_length=50)
+    tipo = models.CharField(max_length=20, choices=[('creación', 'Creación'), ('actualización', 'Actualización')])
+    stock_anterior = models.PositiveIntegerField()
+    cantidad_cambiada = models.IntegerField()  # Puede ser negativo
+    stock_nuevo = models.PositiveIntegerField()
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'historial_producto'
+        verbose_name = 'historial producto'
+        verbose_name_plural = 'historial productos'
+
+    def __str__(self):
+        return f"{self.producto.nombre} ({self.tipo}) - {self.fecha.strftime('%Y-%m-%d %H:%M')}"
+       
 
 class Descuento(models.Model):
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)

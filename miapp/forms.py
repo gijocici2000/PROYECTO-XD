@@ -3,6 +3,9 @@ from .models import *
 from django.forms import modelformset_factory
 from django.forms import inlineformset_factory
 
+from django.contrib.auth.forms import UserCreationForm 
+
+from django.contrib.auth.models import User
 
 
 class EmpleadoForm(forms.ModelForm):
@@ -45,76 +48,34 @@ class ClienteForm(forms.ModelForm):
         
         }
 
-from django import forms
-from .models import Producto
+
+
 
 class ProductoForm(forms.ModelForm):
-    
     class Meta:
         model = Producto
         fields = [
-            'nombre',
-            'modelo',
-            'color',
-            'numero_serie',
-            'categoria',
-            'unidad',
-            'precio',
-            'stock',
+            'numero_serie', 'nombre', 'modelo', 'color',
+            'categoria', 'unidad', 'precio',
+            # NO incluir 'stock' aquí porque lo maneja el backend
         ]
-
         widgets = {
-            'nombre': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingrese el nombre del producto',
-                'maxlength': '20'
-            }),
-            'modelo': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Modelo del producto',
-                'maxlength': '40'
-            }),
-            'color': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Color',
-                'maxlength': '20'
-            }),
-            'numero_serie': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Número de serie',
-                'maxlength': '20'
-            }),
-            'categoria': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Categoría',
-                'maxlength': '20'
-            }),
-            'unidad': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ej: Caja, Unidad, Paquete'
-            }),
-            'precio': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'step': '0.01',
-                'min': '0',
-                'placeholder': 'Precio en dólares'
-            }),
-            'stock': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'min': '0',
-                'placeholder': 'Cantidad en stock'
-            }),
+            'numero_serie': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Número de serie', 'maxlength': '20'}),
+            'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ingrese el nombre del producto', 'maxlength': '20'}),
+            'modelo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Modelo del producto', 'maxlength': '40'}),
+            'color': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Color', 'maxlength': '20'}),
+            'categoria': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Categoría', 'maxlength': '20'}),
+            'unidad': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Caja, Unidad, Paquete'}),
+            'precio': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': 'Precio en dólares'}),
         }
-
         labels = {
+            'numero_serie': 'Número de Serie:',
             'nombre': 'Nombre:',
             'modelo': 'Modelo:',
             'color': 'Color:',
-            'numero_serie': 'Número de Serie:',
             'categoria': 'Categoría:',
             'unidad': 'Unidades a ingresar:',
             'precio': 'Precio Unitario ($):',
-            'stock': 'Stock Disponible:',
         }
 
     def clean_precio(self):
@@ -123,13 +84,17 @@ class ProductoForm(forms.ModelForm):
             raise forms.ValidationError("El precio no puede ser negativo.")
         return precio
 
-    def clean_stock(self):
-        stock = self.cleaned_data.get('stock')
-        if stock is not None and stock < 0:
-            raise forms.ValidationError("El stock no puede ser negativo.")
-        return stock
-
-
+    def clean_unidad(self):
+        unidad = self.cleaned_data.get('unidad')
+        if unidad is None:
+            raise forms.ValidationError("La unidad es obligatoria.")
+        try:
+            cantidad = int(unidad)
+        except (TypeError, ValueError):
+            raise forms.ValidationError("La unidad debe ser un número entero válido.")
+        if cantidad <= 0:
+            raise forms.ValidationError("La cantidad a ingresar debe ser mayor que cero.")
+        return cantidad
 
 #########################Factura y Factura Detalle#########################
 
@@ -433,3 +398,16 @@ class BuscarCotizacionDetalleForm(forms.Form):
             }
         )
     )
+
+class CustomUserCreationForm(UserCreationForm):
+    email = forms.EmailField(required=True, label='Correo electrónico')
+
+    class Meta:
+        model = User
+        fields = ['username' , 'email', 'password1', 'password2']
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if User.objects.filter(email=email).exists():
+            raise forms.ValidationError('Este correo ya está registrado.')
+        return email
