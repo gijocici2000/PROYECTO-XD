@@ -19,7 +19,7 @@
 
     <!-- Select2 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-
+    
     <style>
         body {
             background-color: #585252;
@@ -79,8 +79,9 @@
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Libro</a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'crear_producto' %}">Crear Libro</a></li>
                             <li><a class="dropdown-item" href="{% url 'consultar_producto' %}">Consultar Libro</a></li>
+                            <li><a class="dropdown-item" href="{% url 'crear_producto' %}">Crear Libro</a></li>
+                           
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
@@ -100,8 +101,9 @@
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Cotizacion</a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'crear_cotizacion' %}">Crear Cotizacion</a></li>
+                        
                             <li><a class="dropdown-item" href="{% url 'consultar_cotizacion' %}">Consultar Cotizacion</a></li>
+                            <li><a class="dropdown-item" href="{% url 'crear_cotizacion' %}">Crear Cotizacion</a></li>
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
@@ -191,3 +193,8 @@
 
 </body>
 </html>
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+  {% endfor %}
+{% endif %}

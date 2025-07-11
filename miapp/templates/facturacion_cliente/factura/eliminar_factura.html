@@ -2,15 +2,25 @@
 {% load static %}
 
 {% block main %}
-<div class="container my-4">
+<div class="container my-4 text-light">
     <h2 class="mb-4 text-danger">Anular Factura: {{ factura.numero_factura }}</h2>
 
-    <p>¿Está seguro que desea anular esta factura?</p>
+    <div class="alert alert-warning text-dark fw-bold">
+        <p>¿Está seguro que desea <span class="text-danger">anular</span> esta factura?</p>
+        <ul>
+            <li>El estado de la factura se cambiará a <strong>"Anulada"</strong>.</li>
+            <li>El stock de los productos vendidos en esta factura será <strong>restaurado</strong>.</li>
+        </ul>
+    </div>
 
     <form method="post">
         {% csrf_token %}
-        <button type="submit" class="btn btn-danger">Sí, Anular</button>
-        <a href="{% url 'consultar_factura' %}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-danger me-2">
+            <i class="bi bi-x-circle-fill"></i> Sí, Anular Factura
+        </button>
+        <a href="{% url 'consultar_factura' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left-circle"></i> Cancelar
+        </a>
     </form>
 </div>
 {% endblock %}

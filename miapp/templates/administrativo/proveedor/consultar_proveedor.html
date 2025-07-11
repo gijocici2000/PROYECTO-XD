@@ -1,0 +1,85 @@
+{% extends 'index.html' %}
+{% load static %}
+
+{% block main %}
+<div class="container mt-4">
+    <h2 class="text-center mb-4 text-primary"><b>Consultar Proveedor</b></h2>
+
+    <!-- Formulario de búsqueda -->
+    <form method="post" class="mb-4">
+        {% csrf_token %}
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                {{ buscador_Proveedor.nombre.label_tag }}
+                {{ buscador_Proveedor.nombre }}
+            </div>
+            <div class="col-md-3">
+                {{ buscador_Proveedor.ruc.label_tag }}
+                {{ buscador_Proveedor.ruc }}
+            </div>
+            <div class="col-md-3">
+                {{ buscador_Proveedor.fecha.label_tag }}
+                {{ buscador_Proveedor.fecha }}
+            </div>
+
+            <div class="col-md-1">
+                <button type="submit" name="buscar_proveedor" value="Buscar proveedor" class="btn btn-primary w-100 mb-2">
+                    <i class="fas fa-search"></i> Buscar
+                </button>
+            </div>
+
+            <div class="col-md-2">
+                <button type="submit" name="exportar_proveedor" value="Exportar proveedor" class="btn btn-danger w-100 mb-2">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Tabla de resultados -->
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+            <thead class="table-primary text-center">
+                <tr>
+                    <th>Nombre</th>
+                    <th>RUC</th>
+                    <th>Teléfono</th>
+                    <th>Email</th>
+                    <th>Dirección</th>
+                    <th>Fecha creación</th>
+                    <th>Modificar</th>
+                    <th>Eliminar</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if proveedores %}
+                    {% for p in proveedores %}
+                    <tr>
+                        <td>{{ p.nombre }}</td>
+                        <td>{{ p.ruc }}</td>
+                        <td>{{ p.telefono }}</td>
+                        <td>{{ p.email }}</td>
+                        <td>{{ p.direccion }}</td>
+                        <td>{{ p.fecha_creacion }}</td>
+                        <td class="text-center">
+                            <a href="{% url 'modificar_proveedor' p.id %}" class="btn btn-info btn-sm">
+                                <i class="fas fa-edit"></i> Modificar
+                            </a>
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'eliminar_proveedor' p.id %}" class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Estás seguro de eliminar este proveedor?')">
+                                <i class="fas fa-trash-alt"></i> Eliminar
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center">No hay proveedores registrados.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

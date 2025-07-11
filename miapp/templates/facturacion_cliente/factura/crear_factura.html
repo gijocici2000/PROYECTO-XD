@@ -249,4 +249,15 @@ document.getElementById('facturaForm').addEventListener('submit', e => {
     }
 });
 </script>
+
+{% if request.GET.pdf_factura %}
+<script>
+  window.onload = function() {
+    const facturaId = "{{ request.GET.pdf_factura }}";
+    const urlPDF = "{% url 'exportar_pdf_factura' %}?factura_id=" + facturaId;
+    window.open(urlPDF, '_blank');
+  }
+</script>
+{% endif %}
+
 {% endblock %}

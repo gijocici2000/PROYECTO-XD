@@ -1,26 +1,68 @@
- {% extends 'index.html' %}
+{% extends 'index.html' %}
 
 {% block main %}
-<div class="container mt-4 text-light"></div>
+<div class="container mt-4 text-light">
+  <h2 class="text-center mb-4 text-primary"><b>Agregar Proveedor</b></h2>
 
-  <h2 class="text-center mb-4 text-primary"><b>Agregar Producto</b></h2>
-        
-        
-          <form method="post" action="{% url 'crear_producto' %}" class="w-25 mx-auto p-4 rounded" style="background-color: #308a9e; border: 1px solid #333;">
-            {% csrf_token %}
+  <form method="post" action="{% url 'crear_proveedor' %}" class="w-50 mx-auto p-4 rounded"
+        style="background-color: #308a9e; border: 1px solid #333;">
+    {% csrf_token %}
 
-              <div class="mb-3">
-                  {{ form_Proveedor }}
-              </div>  
-
-            <div class="d-flex justify-content-between mt-4">
-              <button type="submit" class="btn btn-success px-4">Guardar</button>
-              <a href="{% url 'consultar_proveedor' %}" class="btn btn-outline-danger px-4">Cancelar</a>
-            </div>
-          </form>
-        </div>
-      </div>
+    <div class="mb-3">
+      {{ form_Proveedor.nombre.label_tag }}
+      {{ form_Proveedor.nombre }}
     </div>
-  </div>
+
+    <div class="mb-3">
+      {{ form_Proveedor.marca.label_tag }}
+      {{ form_Proveedor.marca }}
+    </div>
+
+    <div class="mb-3">
+      {{ form_Proveedor.producto.label_tag }}
+      {{ form_Proveedor.producto }}
+    </div>
+
+    <div class="mb-3">
+      {{ form_Proveedor.ruc.label_tag }}
+      {{ form_Proveedor.ruc }}
+    </div>
+
+    <div class="mb-3">
+      {{ form_Proveedor.telefono.label_tag }}
+      {{ form_Proveedor.telefono }}
+    </div>
+
+    <div class="mb-3">
+      {{ form_Proveedor.correo.label_tag }}
+      {{ form_Proveedor.correo }}
+    </div>
+
+    <div class="mb-3">
+      {{ form_Proveedor.direccion.label_tag }}
+      {{ form_Proveedor.direccion }}
+    </div>
+
+    <!-- Si gestionas estos campos automáticamente en la vista, puedes ocultarlos en el form -->
+    <div class="mb-3">
+      {{ form_Proveedor.creacion_usuario.label_tag }}
+      {{ form_Proveedor.creacion_usuario }}
+    </div>
+
+    <div class="mb-3">
+      {{ form_Proveedor.modificacion_usuario.label_tag }}
+      {{ form_Proveedor.modificacion_usuario }}
+    </div>
+
+    <div class="mb-3">
+      {{ form_Proveedor.estado.label_tag }}
+      {{ form_Proveedor.estado }}
+    </div>
+
+    <div class="d-flex justify-content-between mt-4">
+      <button type="submit" class="btn btn-success px-4">Guardar</button>
+      <a href="{% url 'consultar_proveedor' %}" class="btn btn-outline-danger px-4">Cancelar</a>
+    </div>
+  </form>
 </div>
 {% endblock %}

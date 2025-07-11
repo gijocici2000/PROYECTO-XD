@@ -52,21 +52,58 @@ class ClienteForm(forms.ModelForm):
 
 
 class ProductoForm(forms.ModelForm):
+    cantidad_ingresar = forms.IntegerField(
+        min_value=1,
+        label="Cantidad a ingresar:",
+        error_messages={
+            'required': "Este campo es obligatorio.",
+            'min_value': "Debe ser al menos 1."
+        },
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingrese la cantidad a agregar al stock',
+            'min': '1'
+        })
+    )
+
     class Meta:
         model = Producto
         fields = [
             'numero_serie', 'nombre', 'modelo', 'color',
-            'categoria', 'unidad', 'precio',
-            # NO incluir 'stock' aquí porque lo maneja el backend
+            'categoria', 'precio'
         ]
         widgets = {
-            'numero_serie': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Número de serie', 'maxlength': '20'}),
-            'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ingrese el nombre del producto', 'maxlength': '20'}),
-            'modelo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Modelo del producto', 'maxlength': '40'}),
-            'color': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Color', 'maxlength': '20'}),
-            'categoria': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Categoría', 'maxlength': '20'}),
-            'unidad': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Caja, Unidad, Paquete'}),
-            'precio': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': 'Precio en dólares'}),
+            'numero_serie': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Número de serie',
+                'maxlength': '100'
+            }),
+            'nombre': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Nombre del producto',
+                'maxlength': '100'
+            }),
+            'modelo': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Modelo del producto',
+                'maxlength': '100'
+            }),
+            'color': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Color',
+                'maxlength': '50'
+            }),
+            'categoria': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Categoría',
+                'maxlength': '20'
+            }),
+            'precio': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+                'placeholder': 'Precio en dólares'
+            }),
         }
         labels = {
             'numero_serie': 'Número de Serie:',
@@ -74,7 +111,6 @@ class ProductoForm(forms.ModelForm):
             'modelo': 'Modelo:',
             'color': 'Color:',
             'categoria': 'Categoría:',
-            'unidad': 'Unidades a ingresar:',
             'precio': 'Precio Unitario ($):',
         }
 
@@ -84,18 +120,11 @@ class ProductoForm(forms.ModelForm):
             raise forms.ValidationError("El precio no puede ser negativo.")
         return precio
 
-    def clean_unidad(self):
-        unidad = self.cleaned_data.get('unidad')
-        if unidad is None:
-            raise forms.ValidationError("La unidad es obligatoria.")
-        try:
-            cantidad = int(unidad)
-        except (TypeError, ValueError):
-            raise forms.ValidationError("La unidad debe ser un número entero válido.")
-        if cantidad <= 0:
+    def clean_cantidad_ingresar(self):
+        cantidad = self.cleaned_data.get('cantidad_ingresar')
+        if cantidad is None or cantidad <= 0:
             raise forms.ValidationError("La cantidad a ingresar debe ser mayor que cero.")
         return cantidad
-
 #########################Factura y Factura Detalle#########################
 
 

@@ -43,9 +43,13 @@ urlpatterns = [
     path('factura/crear/', views.crear_factura, name='crear_factura'),
     path('factura/consultar/', views.consultar_factura, name='consultar_factura'),
     path('factura/modificar/<int:id>/', views.modificar_factura, name='modificar_factura'),
+    path('factura/anular/<int:id>/', views.anular_factura, name='anular_factura'),
     path('factura/eliminar/<int:id>/', views.eliminar_factura, name='eliminar_factura'),
     path('factura_detalle/crear/', views.crear_factura_detalle, name='crear_factura_detalle'),
     path('exportar_pdf_factura/', views.exportar_pdf_factura, name='exportar_pdf_factura'),
+
+
+
 
     # Cotización
     path('cotizacion/consultar/', views.consultar_cotizacion, name='consultar_cotizacion'),

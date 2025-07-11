@@ -29,6 +29,11 @@ from django.utils.safestring import mark_safe
 from .models import *
 from .forms import *
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+
+
+#################################login y registro de usuarios##########################################
+
+
 def index(request):
     cargos_permitidos = ['admin', 'gerente']
     return render(request, 'index.html',{'cargos_permitidos': cargos_permitidos})
@@ -83,10 +88,72 @@ def logout_view(request):
 def no_autorizado(request):
     return render(request, 'registro_usuario/no_autorizado.html', {"mensaje": "No tienes permiso para acceder aquí."})
 
+######################################### EMPLEADO ########################################
+
+@login_required
+@cargo_requerido(['admin', 'Gerente'])
+def crear_empleado(request: HttpRequest) -> HttpResponse:
+    if request.method == "POST":
+        form = EmpleadoForm(request.POST, request.FILES)
+        if form.is_valid():
+            empleado = form.save(commit=False)
+            empleado.creacion_usuario = request.user.username
+            empleado.save()
+            return redirect("consultar_empleado")
+    else:
+        form = EmpleadoForm()
+    return render(request, "empleado/crear_empleado.html", {"form": form, "edit_mode": False})
+ 
+@login_required
+@cargo_requerido(['admin', 'Gerente'])   
+def modificar_empleado(request: HttpRequest, id: int) -> HttpResponse:
+    empleado = get_object_or_404(Empleado, id=id)
+    if request.method == "POST":
+        form = EmpleadoForm(request.POST, request.FILES, instance=empleado)
+        if form.is_valid():
+            empleado = form.save(commit=False)
+            empleado.modificacion_usuario = request.user.username
+            empleado.save()
+            return redirect("consultar_empleado")
+    else:
+        form = EmpleadoForm(instance=empleado)
+    return render(request, "empleado/modificar_empleado.html", {"form": form, "empleado": empleado, "edit_mode": True})
+@login_required
+@cargo_requerido(['admin', 'Gerente'])
+def consultar_empleado(request: HttpRequest) -> HttpResponse:
+    if request.method == "POST":
+        if 'buscar_empleado' in request.POST:
+            buscarEmpleadoForm = BuscarEmpleadoForm(request.POST)
+            if buscarEmpleadoForm.is_valid():
+                nombre = buscarEmpleadoForm.cleaned_data.get('nombre', '')
+                apellido = buscarEmpleadoForm.cleaned_data.get('apellido', '')
+                cedula = buscarEmpleadoForm.cleaned_data.get('cedula', '')
+                fecha = buscarEmpleadoForm.cleaned_data.get('fecha', None)
+
+                empleados = Empleado.objects.filter(
+                    Q(nombre__icontains=nombre) if nombre else Q(),
+                    Q(apellido__icontains=apellido) if apellido else Q(),
+                    Q(cedula__icontains=cedula) if cedula else Q(),
+                    Q(fecha_creacion__lte=fecha) if fecha else Q(),
+                )
+                context = {'buscador_Empleado': buscarEmpleadoForm, 'empleados': empleados}
+                return render(request, "empleado/consultar_empleado.html", context)
+
+    buscarEmpleadoForm = BuscarEmpleadoForm()
+    empleados = None
+    return render(request, "empleado/consultar_empleado.html", {'buscador_Empleado': buscarEmpleadoForm, 'empleados': empleados})
+@login_required
+@cargo_requerido(['admin', 'Gerente'])
+def eliminar_empleado(request: HttpRequest, id: int) -> HttpResponse:
+    empleado = get_object_or_404(Empleado, id=id)
+    if request.method == "POST":
+        empleado.delete()
+        return redirect("consultar_empleado")
+    return render(request, "empleado/eliminar_empleado.html", {"empleado": empleado})
 
 
 
-# ===================== CLIENTE =====================
+########################################## CLIENTE ########################################
 @login_required
 @cargo_requerido(['admin', 'gerente','cajero' ,])
 def crear_cliente(request: HttpRequest) -> HttpResponse:
@@ -128,7 +195,7 @@ def consultar_cliente(request: HttpRequest) -> HttpResponse:
     return render(request, "facturacion_cliente/cliente/consultar_cliente.html", {'buscador_Cliente': buscarClienteForm, 'clientes': clientes})
 
 @login_required
-@cargo_requerido(['Admin', 'Gerente'])
+@cargo_requerido(['Admin', 'Gerente','cajero'])
 def modificar_cliente(request: HttpRequest, id: int) -> HttpResponse:
     cliente = get_object_or_404(Cliente, id=id)
     if request.method == "POST":
@@ -150,7 +217,7 @@ def eliminar_cliente(request: HttpRequest, id: int) -> HttpResponse:
         return redirect("consultar_cliente")
     return render(request, "facturacion_cliente/cliente/eliminar_cliente.html", {"cliente": cliente})
 
-# ===================== PRODUCTO =====================
+############################################ PRODUCTO ########################################
 
 @login_required
 @cargo_requerido(['Admin', 'Gerente'])
@@ -177,46 +244,46 @@ def crear_producto(request):
             data = {'existe': False}
         return JsonResponse(data)
 
-    # Lista de productos activos
-    productos = list(Producto.objects.filter(estado=1).values('nombre', 'stock'))
+    # Cargar productos activos
+    productos = list(Producto.objects.filter(estado=1).values('numero_serie', 'stock'))
 
-    # POST: Crear o actualizar producto
     if request.method == 'POST':
-        form = ProductoForm(request.POST)
-        if form.is_valid():
-            numero_serie = form.cleaned_data['numero_serie'].strip()
+            form = ProductoForm(request.POST)
+            numero_serie = request.POST.get('numero_serie', '').strip()
+
             try:
-                cantidad = int(form.cleaned_data['cantidad_ingresar'])
+                cantidad = int(request.POST.get('cantidad_ingresar', '0'))
             except (ValueError, TypeError):
                 cantidad = 0
 
             if cantidad <= 0:
                 mensaje = "❌ Ingresa una cantidad válida mayor a cero."
             else:
-                precio = Decimal(str(form.cleaned_data['precio']))
-
                 try:
+                    # ✅ Producto ya existe: actualiza solo el stock
                     producto = Producto.objects.get(numero_serie__iexact=numero_serie)
                     producto.stock += cantidad
                     producto.modificacion_usuario = request.user.username
                     producto.save()
-                    mensaje = f"✅ Producto actualizado. Nuevo stock: {producto.stock}"
+                    mensaje = f"✅ Producto existente actualizado. Nuevo stock: {producto.stock}"
                     stock_actual = producto.stock
+                    form = ProductoForm()  # Limpiar el formulario
                 except Producto.DoesNotExist:
-                    nuevo = form.save(commit=False)
-                    nuevo.stock = cantidad
-                    nuevo.precio = precio
-                    nuevo.creacion_usuario = request.user.username
-                    nuevo.modificacion_usuario = request.user.username
-                    nuevo.estado = 1
-                    nuevo.save()
-                    mensaje = "✅ Producto nuevo creado correctamente."
-                    stock_actual = nuevo.stock
+                    # 🆕 Producto nuevo: validamos y lo guardamos
+                    if form.is_valid():
+                        nuevo = form.save(commit=False)
+                        nuevo.stock = cantidad
+                        nuevo.creacion_usuario = request.user.username
+                        nuevo.modificacion_usuario = request.user.username
+                        nuevo.estado = 1
+                        nuevo.save()
+                        mensaje = "✅ Producto nuevo creado correctamente."
+                        stock_actual = nuevo.stock
+                        form = ProductoForm()
+                    else:
+                        mensaje = "❌ Formulario inválido. Revisa los datos."
 
-                productos = list(Producto.objects.filter(estado=1).values('nombre', 'stock'))
-                form = ProductoForm()  # limpiar formulario
-        else:
-            mensaje = "❌ Formulario inválido. Revisa los datos."
+    productos = list(Producto.objects.filter(estado=1).values('numero_serie', 'stock'))
 
     return render(request, 'facturacion_cliente/producto/crear_producto.html', {
         'form_Producto': form,
@@ -225,7 +292,7 @@ def crear_producto(request):
         'productos_json': json.dumps(productos, ensure_ascii=False),
     })
 @login_required
-@cargo_requerido(['Admin', 'Gerente'])
+@cargo_requerido(['Admin', 'Gerente','cajero'])
 def consultar_producto(request):
     productos = None
     buscarProductoForm = BuscarProductoForm(request.POST or None)
@@ -255,7 +322,7 @@ def consultar_producto(request):
     return render(request, "facturacion_cliente/producto/consultar_producto.html", context)
 
 @login_required
-@cargo_requerido(['Admin', 'Gerente'])
+@cargo_requerido(['Admin', 'Gerente','cajero'])
 def exportar_pdf_producto(request: HttpRequest) -> HttpResponse:
     response = HttpResponse(content_type="application/pdf")
     response["Content-Disposition"] = 'attachment; filename="consultar_producto.pdf"'
@@ -333,7 +400,7 @@ def eliminar_producto(request: HttpRequest, id: int) -> HttpResponse:
         return redirect("consultar_producto")
     return render(request, "facturacion_cliente/producto/eliminar_producto.html", {"producto": producto})
 
-#############################################################################################################
+######################################################################
 # Funciones simples para renderizar templates sin lógica adicional
 
 def filtrar_descuentos(nombre: str = '', porcentaje: Optional[float] = None):
@@ -344,6 +411,7 @@ def filtrar_descuentos(nombre: str = '', porcentaje: Optional[float] = None):
         filtros &= Q(porcentaje__gte=porcentaje)
     return Descuento.objects.filter(filtros)
 
+##########################-------------------DESCUEENTO-------------##########################################
 @login_required
 @cargo_requerido(['admin', 'Gerente'])
 def crear_descuento(request: HttpRequest) -> HttpResponse:
@@ -361,7 +429,7 @@ def crear_descuento(request: HttpRequest) -> HttpResponse:
     })
 
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
+@cargo_requerido(['admin', 'Gerente','cajero'])
 def consultar_descuento(request: HttpRequest) -> HttpResponse:
     descuentos = None
     buscarDescuentoForm = BuscarDescuentoForm(request.POST or None)
@@ -469,11 +537,9 @@ def eliminar_descuento(request: HttpRequest, id: int) -> HttpResponse:
     })
 
 
-
-#############################################################################################################
-# Funciones para manejar cotización
+####################################### ------cotización -------------------    ############################
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
+@cargo_requerido(['admin', 'Gerente','cajero'])
 def crear_cotizacion(request):
     if request.method == 'POST':
         cliente_id = request.POST.get('cliente_id')
@@ -570,7 +636,7 @@ def crear_cotizacion(request):
 
 
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
+@cargo_requerido(['admin', 'Gerente','cajero'])
 def consultar_cotizacion(request):
     desde = request.GET.get('desde')
     hasta = request.GET.get('hasta')
@@ -599,7 +665,7 @@ def consultar_cotizacion(request):
 
 
 @login_required 
-@cargo_requerido(['admin', 'Gerente'])
+@cargo_requerido(['admin', 'Gerente','cajero'])
 def exportar_pdf_cotizacion(request, cotizacion_id):
     cotizacion = get_object_or_404(Cotizacion, id=cotizacion_id)
 
@@ -673,7 +739,7 @@ def exportar_pdf_cotizacion(request, cotizacion_id):
     return response
 
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
+@cargo_requerido(['admin', 'Gerente','cajero'])
 def modificar_cotizacion(request: HttpRequest, id: int) -> HttpResponse:
     cotizacion = get_object_or_404(Cotizacion, id=id)
     if request.method == "POST":
@@ -697,7 +763,7 @@ def modificar_cotizacion(request: HttpRequest, id: int) -> HttpResponse:
 
 
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
+@cargo_requerido(['admin', 'Gerente','cajero'])
 def eliminar_cotizacion(request, cotizacion_id):
     cotizacion = get_object_or_404(Cotizacion, id=cotizacion_id)
 
@@ -713,12 +779,12 @@ def eliminar_cotizacion(request, cotizacion_id):
 
 
 
-#############################################################################################################
+########################################### Cotización Detalle ########################################
 # Funciones para manejar cotización detalle\
 
 
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
+@cargo_requerido(['admin', 'Gerente','cajero'])
 def crear_cotizacion_detalle(request):
     if request.method == "POST":
         form = CotizacionDetalleForm(request.POST)
@@ -740,7 +806,7 @@ def crear_cotizacion_detalle(request):
     return render(request, "facturacion_cliente/cotizacion_detalle/crear_cotizacion_detalle.html", context)
 
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
+@cargo_requerido(['admin', 'Gerente','cajero'])
 def consultar_cotizacion_detalle(request):
     detalles = None
     buscar_form = BuscarCotizacionDetalleForm()
@@ -774,7 +840,7 @@ def consultar_cotizacion_detalle(request):
     }
     return render(request, "facturacion_cliente/cotizacion_detalle/consultar_cotizacion_detalle.html", context)
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
+@cargo_requerido(['admin', 'Gerente','cajero'])
 def eliminar_cotizacion_detalle(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         cotizacion_detalle_id = request.POST.get('cotizacion_detalle_id')
@@ -791,7 +857,7 @@ def eliminar_cotizacion_detalle(request: HttpRequest) -> HttpResponse:
     # Si no es POST, puedes mostrar una confirmación o redirigir
     return render(request, "facturacion_cliente/cotizacion_detalle/eliminar_cotizacion_detalle.html")
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
+@cargo_requerido(['admin', 'Gerente','cajero'])
 def modificar_cotizacion_detalle(request: HttpRequest, id: int) -> HttpResponse:
     cotizacion_detalle = get_object_or_404(Cotizacion_Detalle, id=id)
     
@@ -822,7 +888,7 @@ def modificar_cotizacion_detalle(request: HttpRequest, id: int) -> HttpResponse:
 
 # Tus imports y modelos aquí (Factura, Producto, Iva, Factura_Detalle, etc.)
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
+@cargo_requerido(['admin', 'Gerente','cajero'])
 def crear_factura(request: HttpRequest) -> HttpResponse:
     if request.method == 'POST':
         cliente_id = request.POST.get('cliente_id')
@@ -900,7 +966,10 @@ def crear_factura(request: HttpRequest) -> HttpResponse:
         except Exception as e:
             return HttpResponse(f"Error al procesar la factura: {str(e)}", status=500)
 
-        return redirect('consultar_factura')
+        return redirect(f"{reverse('crear_factura')}?pdf_factura={factura.pk}")
+
+
+
 
     # Si no es POST, se asume GET y se preparan datos para el formulario:
     productos = list(Producto.objects.values('id', 'nombre', 'numero_serie', 'precio', 'stock'))
@@ -926,7 +995,7 @@ def crear_factura(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
+@cargo_requerido(['admin', 'Gerente','cajero'])
 def crear_factura_detalle(request):
     if request.method == 'POST':
         factura_form = FacturaForm(request.POST)
@@ -950,8 +1019,12 @@ def crear_factura_detalle(request):
     return render(request, "facturacion_cliente/factura/consultar_factura.html", context)
 
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
-def consultar_factura(request):
+@cargo_requerido(['admin', 'Gerente','cajero'])
+def consultar_factura(request, id=None):
+    factura = None
+    if id is not None:
+        factura = get_object_or_404(Factura, pk=id)
+    
     facturas = None
     buscar_form = BuscarFacturaForm(request.POST or None)
     filtros = Q()
@@ -975,8 +1048,8 @@ def consultar_factura(request):
 
             # Calcular total para cada factura
             for f in facturas:
-                total = f.detalles.aggregate(total=Sum('total_factura_valor'))['total'] or 0 # type: ignore
-                f.total_calculado = total # type: ignore
+                total = f.detalles.aggregate(total=Sum('total_factura_valor'))['total'] or 0  # type: ignore
+                f.total_calculado = total  # type: ignore
 
         elif 'exportar_factura' in request.POST:
             return exportar_pdf_factura(request)
@@ -984,13 +1057,14 @@ def consultar_factura(request):
     context = {
         'buscador_factura': buscar_form,
         'facturas': facturas,
+        'factura': factura,
     }
-    return render(request, "facturacion_cliente/factura/consultar_factura.html", context)
+    return render(request, 'facturacion_cliente/factura/consultar_factura.html', context)
 
 
 
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
+@cargo_requerido(['admin', 'Gerente','cajero'])
 def exportar_pdf_factura(request):
     factura_id = request.GET.get('factura_id') or request.POST.get('factura_id')
 
@@ -1106,7 +1180,8 @@ def exportar_pdf_factura(request):
     p.showPage()
     p.save()
     buffer.seek(0)
-    return FileResponse(buffer, as_attachment=True, filename=f'Factura_{factura.numero_factura or factura.pk}.pdf')
+    return FileResponse(buffer, as_attachment=False, filename=f'Factura_{factura.numero_factura or factura.pk}.pdf', content_type='application/pdf')
+
 @login_required
 @cargo_requerido(['admin', 'Gerente'])
 def modificar_factura(request, id):
@@ -1129,15 +1204,37 @@ def modificar_factura(request, id):
         'factura': factura,
     }
     return render(request, "facturacion_cliente/factura/modificar_factura.html", context)
+@login_required
+@cargo_requerido(['Admin', 'Gerente'])
+def anular_factura(request, id):
+    factura = get_object_or_404(Factura, pk=id)
 
+    if request.method == 'POST':
+        factura.estado = 0
+        factura.save()
+        return redirect('consultar_factura')
+
+    return render(request, 'factura/anular.html', {'factura': factura})
 @login_required
 @cargo_requerido(['admin', 'Gerente'])
+
+
 def eliminar_factura(request, id):
     factura = get_object_or_404(Factura, factura_codigo=id)
+
     if request.method == "POST":
-        factura.estado = 0  # Marcar como anulado
-        factura.save()
-        messages.success(request, "Factura anulada correctamente.")
+        detalles = Factura_Detalle.objects.filter(factura=factura)
+
+        for detalle in detalles:
+            producto = detalle.producto
+            producto.stock += detalle.cantidad_producto
+            producto.save()
+
+        # Primero eliminamos los detalles y luego la factura
+        detalles.delete()
+        factura.delete()
+
+        messages.success(request, "Factura eliminada correctamente y stock restaurado.")
         return redirect('consultar_factura')
 
     context = {
@@ -1146,13 +1243,7 @@ def eliminar_factura(request, id):
     return render(request, "facturacion_cliente/factura/eliminar_factura.html", context)
 
 
-
-#############################################################################################################
-
-#############################################################################################################
-
-
-# ===================== PROVEEDOR =====================
+######################################### Proveedor#########################################
 @login_required
 @cargo_requerido(['admin', 'Gerente'])
 def crear_proveedor(request: HttpRequest) -> HttpResponse:
@@ -1272,69 +1363,3 @@ def eliminar_proveedor(request: HttpRequest, id: int) -> HttpResponse:
 ##############################################################################################################
 #############################################################################################################
 ###############################################################################################################
-#############################################################################################################
-                                                # EMPLEADO
-
-
-
-@login_required
-@cargo_requerido(['admin', 'Gerente'])
-def crear_empleado(request: HttpRequest) -> HttpResponse:
-    if request.method == "POST":
-        form = EmpleadoForm(request.POST, request.FILES)
-        if form.is_valid():
-            empleado = form.save(commit=False)
-            empleado.creacion_usuario = request.user.username
-            empleado.save()
-            return redirect("consultar_empleado")
-    else:
-        form = EmpleadoForm()
-    return render(request, "empleado/crear_empleado.html", {"form": form, "edit_mode": False})
- 
-@login_required
-@cargo_requerido(['admin', 'Gerente'])   
-def modificar_empleado(request: HttpRequest, id: int) -> HttpResponse:
-    empleado = get_object_or_404(Empleado, id=id)
-    if request.method == "POST":
-        form = EmpleadoForm(request.POST, request.FILES, instance=empleado)
-        if form.is_valid():
-            empleado = form.save(commit=False)
-            empleado.modificacion_usuario = request.user.username
-            empleado.save()
-            return redirect("consultar_empleado")
-    else:
-        form = EmpleadoForm(instance=empleado)
-    return render(request, "empleado/modificar_empleado.html", {"form": form, "empleado": empleado, "edit_mode": True})
-@login_required
-@cargo_requerido(['admin', 'Gerente'])
-def consultar_empleado(request: HttpRequest) -> HttpResponse:
-    if request.method == "POST":
-        if 'buscar_empleado' in request.POST:
-            buscarEmpleadoForm = BuscarEmpleadoForm(request.POST)
-            if buscarEmpleadoForm.is_valid():
-                nombre = buscarEmpleadoForm.cleaned_data.get('nombre', '')
-                apellido = buscarEmpleadoForm.cleaned_data.get('apellido', '')
-                cedula = buscarEmpleadoForm.cleaned_data.get('cedula', '')
-                fecha = buscarEmpleadoForm.cleaned_data.get('fecha', None)
-
-                empleados = Empleado.objects.filter(
-                    Q(nombre__icontains=nombre) if nombre else Q(),
-                    Q(apellido__icontains=apellido) if apellido else Q(),
-                    Q(cedula__icontains=cedula) if cedula else Q(),
-                    Q(fecha_creacion__lte=fecha) if fecha else Q(),
-                )
-                context = {'buscador_Empleado': buscarEmpleadoForm, 'empleados': empleados}
-                return render(request, "empleado/consultar_empleado.html", context)
-
-    buscarEmpleadoForm = BuscarEmpleadoForm()
-    empleados = None
-    return render(request, "empleado/consultar_empleado.html", {'buscador_Empleado': buscarEmpleadoForm, 'empleados': empleados})
-@login_required
-@cargo_requerido(['admin', 'Gerente'])
-def eliminar_empleado(request: HttpRequest, id: int) -> HttpResponse:
-    empleado = get_object_or_404(Empleado, id=id)
-    if request.method == "POST":
-        empleado.delete()
-        return redirect("consultar_empleado")
-    return render(request, "empleado/eliminar_empleado.html", {"empleado": empleado})
-#############################################################################################################
