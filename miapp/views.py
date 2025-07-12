@@ -322,54 +322,64 @@ def consultar_producto(request):
     return render(request, "facturacion_cliente/producto/consultar_producto.html", context)
 
 @login_required
-@cargo_requerido(['Admin', 'Gerente','cajero'])
-def exportar_pdf_producto(request: HttpRequest) -> HttpResponse:
-    response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = 'attachment; filename="consultar_producto.pdf"'
+@cargo_requerido(['Admin', 'Gerente'])
+def exportar_pdf_producto(request):
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        rightMargin=inch / 4,
-        leftMargin=inch / 4,
-        topMargin=inch / 2,
-        bottomMargin=inch / 4,
-        pagesize=A4
-    )
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    elements = []
     styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name='centered', alignment=TA_CENTER))
-    styles.add(ParagraphStyle(name='RightAlign', alignment=TA_RIGHT))
 
-    lista_producto = []
-    header = Paragraph("Listado de productos", styles['Heading1'])
-    lista_producto.append(header)
+    # Información de encabezado
+    empresa_nombre = "📚 Empresa "
+    fecha_actual = timezone.now().strftime("%d/%m/%Y %H:%M:%S")
+    usuario = request.user.username.upper()
 
-    buscarProductoForm = BuscarProductoForm(request.POST)
-    if buscarProductoForm.is_valid():
-        nombre = buscarProductoForm.cleaned_data['nombre']
-        modelo = buscarProductoForm.cleaned_data['modelo']
-        fecha = buscarProductoForm.cleaned_data['fecha']
+    # Títulos e información del encabezado
+    elements.append(Paragraph(empresa_nombre, styles['Title']))
+    elements.append(Paragraph("Reporte de productos registrados", styles['Heading2']))
+    elements.append(Paragraph(f"Fecha de creación del reporte: {fecha_actual}", styles['Normal']))
+    elements.append(Paragraph(f"Generado por: {usuario}", styles['Normal']))
+    elements.append(Spacer(1, 12))
 
-        productos = Producto.objects.filter(
-            Q(nombre__icontains=nombre) if nombre else Q(),
-            Q(modelo__icontains=modelo) if modelo else Q(),
-            Q(fecha_creacion__lte=fecha) if fecha else Q(),
-        )
-        headings = ('Id', 'Nombre', 'Modelo', 'Número de Serie', 'Categoría', 'Color', 'Unidad', 'Precio')
-        allproductos = [( p.nombre, p.modelo, p.numero_serie, p.categoria, p.color, p.stock, p.precio) for p in productos]
+    # Encabezado de tabla
+    encabezados = ["#", "Nombre", "Modelo", "N° Serie", "Color", "Categoría", "Precio", "Stock", "Estado"]
+    data = [encabezados]
 
-        t = Table([headings] + allproductos)
-        t.setStyle(TableStyle([
-            ('GRID', (0, 0), (-1, -1), 1, colors.springgreen),
-            ('LINEBELOW', (0, 0), (-1, 0), 2, colors.springgreen),
-            ('BACKGROUND', (0, 0), (-1, 0), colors.springgreen),
-        ]))
-        lista_producto.append(t)
+    # Datos
+    productos = Producto.objects.all().order_by("nombre")
+    for i, p in enumerate(productos, start=1):
+        data.append([
+            i,
+            p.nombre,
+            p.modelo,
+            p.numero_serie,
+            p.color,
+            p.categoria,
+            f"${p.precio:.2f}",
+            p.stock,
+            "Activo" if p.estado == 1 else "Inactivo"
+        ]) # type: ignore
 
-    doc.build(lista_producto)
-    response.write(buffer.getvalue())
-    buffer.close()
-    return response
+    # Tabla con estilo
+    table = Table(data, repeatRows=1)
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0d6efd")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, 0), 11),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+        ("BACKGROUND", (0, 1), (-1, -1), colors.whitesmoke),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+    ]))
 
+    elements.append(table)
+
+    # Generar PDF
+    doc.build(elements)
+    buffer.seek(0)
+    return HttpResponse(buffer, content_type='application/pdf')
+    
 @login_required
 @cargo_requerido(['Admin', 'Gerente'])
 def modificar_producto(request, id):
@@ -539,7 +549,7 @@ def eliminar_descuento(request: HttpRequest, id: int) -> HttpResponse:
 
 ####################################### ------cotización -------------------    ############################
 @login_required
-@cargo_requerido(['admin', 'Gerente','cajero'])
+@cargo_requerido(['admin', 'Gerente', 'cajero'])
 def crear_cotizacion(request):
     if request.method == 'POST':
         cliente_id = request.POST.get('cliente_id')
@@ -575,6 +585,7 @@ def crear_cotizacion(request):
                     cantidad = int(p['cantidad'])
                     iva = Iva.objects.get(id=p['iva_id']) if p.get('iva_id') else None
 
+                    # Obtener descuento activo (igual que en factura)
                     descuento_activo = Descuento.objects.filter(
                         producto=producto,
                         estado=1,
@@ -590,6 +601,8 @@ def crear_cotizacion(request):
                     else:
                         precio_desc = precio_base
                         descuento_total = Decimal('0')
+
+                    # Aquí NO modificamos stock, porque es cotización
 
                     Cotizacion_Detalle.objects.create(
                         cotizacion=cotizacion,
@@ -607,23 +620,38 @@ def crear_cotizacion(request):
                 cotizacion.save()
 
         except Exception as e:
-            import traceback
-            print(traceback.format_exc())
             return HttpResponse(f"Error al procesar la cotización: {str(e)}", status=500)
 
         pdf_url = reverse('exportar_pdf_cotizacion', kwargs={'cotizacion_id': cotizacion.id})
         return JsonResponse({'success': True, 'pdf_url': pdf_url})
 
-    # Datos para el formulario
-    productos = list(Producto.objects.values('id', 'nombre', 'numero_serie', 'precio', 'stock'))
+    # Si es GET: preparar datos igual que en factura pero para cotización
+
+    ahora = timezone.now()
+    productos_queryset = Producto.objects.all()
+    productos = []
+
+    for p in productos_queryset:
+        descuento_activo = Descuento.objects.filter(
+            producto=p,
+            estado=1,
+            fecha_inicio__lte=ahora,
+            fecha_final__gte=ahora
+        ).order_by('-fecha_inicio').first()
+
+        productos.append({
+            'id': p.pk,
+            'nombre': p.nombre,
+            'numero_serie': p.numero_serie,
+            'precio': float(p.precio),
+            'stock': p.stock,  # solo para mostrar, no modificar
+            'descuento': float(descuento_activo.descuento) if descuento_activo else 0
+        })
+
     clientes = list(Cliente.objects.values('id', 'nombre', 'cedula'))
     empleados = list(Empleado.objects.values('id', 'nombre', 'cargo'))
     sucursales = list(Sucursal.objects.values('id', 'nombre', 'direccion'))
     ivas = Iva.objects.all()
-
-    for p in productos:
-        if isinstance(p['precio'], Decimal):
-            p['precio'] = float(p['precio'])
 
     context = {
         'productos_json': json.dumps(productos, ensure_ascii=False),
@@ -632,8 +660,8 @@ def crear_cotizacion(request):
         'sucursales_json': json.dumps(sucursales, ensure_ascii=False),
         'ivas': ivas,
     }
-    return render(request, 'facturacion_cliente/cotizacion/crear_cotizacion.html', context)
 
+    return render(request, 'facturacion_cliente/cotizacion/crear_cotizacion.html', context)
 
 @login_required
 @cargo_requerido(['admin', 'Gerente','cajero'])
@@ -664,80 +692,124 @@ def consultar_cotizacion(request):
     return render(request, 'facturacion_cliente/cotizacion/consultar_cotizacion.html', context)
 
 
-@login_required 
-@cargo_requerido(['admin', 'Gerente','cajero'])
+@login_required
+@cargo_requerido(['admin', 'Gerente', 'cajero'])
 def exportar_pdf_cotizacion(request, cotizacion_id):
-    cotizacion = get_object_or_404(Cotizacion, id=cotizacion_id)
+    try:
+        cotizacion = Cotizacion.objects.get(pk=cotizacion_id)
+    except Cotizacion.DoesNotExist:
+        return HttpResponse("Cotización no encontrada.", status=404)
 
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="cotizacion_{cotizacion_id}.pdf"'
+    sucursal = cotizacion.sucursal
 
-    doc = SimpleDocTemplate(response, pagesize=letter, # type: ignore
-                            rightMargin=40, leftMargin=40,
-                            topMargin=60, bottomMargin=40)
+    buffer = io.BytesIO()
+    p = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+    left_margin = 50
+    top = height - 50
 
-    styles = getSampleStyleSheet()
-    style_title = styles['Heading1']
-    style_title.alignment = TA_CENTER
-    style_normal = styles['Normal']
+    # Encabezado con info de la empresa/sucursal
+    p.setFont("Helvetica-Bold", 10)
+    p.drawString(left_margin, top - 15, f"R.U.C.: {sucursal.ruc}")
+    p.setFont("Helvetica", 9)
+    p.drawString(left_margin, top - 30, sucursal.nombre.upper())
+    p.drawString(left_margin, top - 45, f"Local: {sucursal.local or 'N/A'}")
+    p.drawString(left_margin, top - 60, f"Dirección: {sucursal.direccion}")
+    p.drawString(left_margin, top - 75, f"Teléfono: {sucursal.telefono or 'N/A'}")
+    p.drawString(left_margin, top - 90, f"Correo: {sucursal.correo or 'N/A'}")
 
-    elements = []
+    # Datos de la cotización (derecha)
+    right_x = width - 250
+    p.setFont("Helvetica-Bold", 10)
+    p.drawString(right_x, top - 15, f"COTIZACIÓN No.: {cotizacion.numero_cotizacion or cotizacion.pk}")
+    p.setFont("Helvetica", 9)
+    p.drawString(right_x, top - 30, f"Fecha Emisión: {cotizacion.fecha_emision.strftime('%d/%m/%Y')}")
 
-    # Título
-    elements.append(Paragraph(f"COTIZACIÓN #{cotizacion.id}", style_title))
-    elements.append(Spacer(1, 12))
+    # Línea separadora
+    p.line(left_margin, top - 100, width - left_margin, top - 100)
 
-    # Info Cliente
-    info = f"""
-    <b>Cliente:</b> {cotizacion.cliente.nombre}<br/>
-    <b>Fecha:</b> {cotizacion.fecha_emision.strftime('%Y-%m-%d %H:%M')}<br/>
-    <b>Comentario:</b> {cotizacion.comentario or 'N/A'}
-    """
-    elements.append(Paragraph(info, style_normal))
-    elements.append(Spacer(1, 20))
+    # Información del cliente
+    p.setFont("Helvetica-Bold", 10)
+    p.drawString(left_margin, top - 115, "CLIENTE:")
+    p.setFont("Helvetica", 9)
+    cliente = cotizacion.cliente
+    p.drawString(left_margin + 70, top - 115, f"{cliente.nombre} {getattr(cliente, 'apellido', '')}   C.I.: {cliente.cedula}")
+    p.drawString(left_margin + 70, top - 130, f"Dirección: {getattr(cliente, 'direccion', 'No disponible')}")
+    p.drawString(left_margin + 70, top - 145, f"Teléfono: {getattr(cliente, 'telefono', 'N/A')}")
+    p.drawString(left_margin + 70, top - 160, f"Email: {getattr(cliente, 'correo', 'N/A')}")
 
-    # Tabla de Productos
-    data = [['Producto', 'Cantidad', 'Precio Unitario', 'Descuento', 'IVA %', 'Total']]
+    # Detalles de productos (quitamos el filtro 'estado')
+    detalles = cotizacion.detalles.all()
 
-    for det in cotizacion.detalles.all(): # type: ignore
-        subtotal = det.precio_cotizado * det.cantidad_producto
-        descuento = det.descuento_total
-        iva_pct = det.iva.porcentaje if det.iva else 0
-        total_desc = subtotal * (1 - descuento / 100)
-        iva_valor = total_desc * iva_pct / 100
-        total_final = total_desc + iva_valor
+    data = [["Producto", "Cantidad", "Precio Unitario", "Subtotal", "Descuento (%)", "IVA", "Total"]]
+
+    subtotal_general = Decimal('0')
+    iva_general = Decimal('0')
+    total_general = Decimal('0')
+
+    for d in detalles:
+        subtotal = (d.precio_cotizado * d.cantidad_producto).quantize(Decimal('0.01'))
+        descuento = d.descuento_total  # Porcentaje, ejemplo 10
+        iva_valor = d.iva_total or Decimal('0.00')
+        total = d.total_calculado or Decimal('0.00')
+
+        subtotal_general += subtotal
+        iva_general += iva_valor
+        total_general += total
 
         data.append([
-            det.producto.nombre,
-            str(det.cantidad_producto),
-            f"${det.precio_cotizado:.2f}",
-            f"{descuento:.2f}%",
-            f"{iva_pct}%",
-            f"${total_final:.2f}"
+            str(d.producto),
+            str(d.cantidad_producto),
+            f"{d.precio_cotizado:.2f}",
+            f"{subtotal:.2f}",
+            f"{descuento}%",
+            f"{iva_valor:.2f}",
+            f"{total:.2f}",
         ])
 
-    totales = cotizacion.get_totales()
-    data.append(['', '', '', '', 'Subtotal', f"${totales['subtotal']:.2f}"])
-    data.append(['', '', '', '', 'IVA', f"${totales['iva_total']:.2f}"])
-    data.append(['', '', '', '', 'Total', f"${totales['total']:.2f}"])
-
-    table = Table(data, colWidths=[2.5*inch, inch, inch, inch, inch, inch])
-
+    # Crear tabla con estilos
+    table = Table(data, colWidths=[140, 60, 70, 70, 70, 60, 70])
     table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#4F81BD')),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0,0), (-1,0), 8),
-        ('FONTNAME', (-2,-3), (-1,-1), 'Helvetica-Bold'),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#dbe5f1")),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+        ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 0.4, colors.grey),
     ]))
 
-    elements.append(table)
-    doc.build(elements)
+    table_width, table_height = table.wrap(0, 0)
+    table_y = top - 190 - table_height
+    if table_y < 100:
+        p.showPage()
+        table_y = height - 100
 
-    return response
+    table.drawOn(p, left_margin, table_y)
 
+    # Totales generales
+    y_totales = table_y - 40
+    p.setFont("Helvetica-Bold", 10)
+    p.setFillColor(colors.black)
+    p.drawRightString(width - 60, y_totales, f"Subtotal: {subtotal_general:.2f}")
+    p.drawRightString(width - 60, y_totales - 15, f"IVA Total: {iva_general:.2f}")
+    p.setFont("Helvetica-Bold", 12)
+    p.setFillColor(colors.HexColor("#003366"))
+    p.drawRightString(width - 60, y_totales - 35, f"TOTAL: {total_general:.2f}")
+
+    # Pie de página
+    p.setFont("Helvetica-Oblique", 8)
+    p.setFillColor(colors.black)
+    p.drawCentredString(width / 2, 30, "Documento generado electrónicamente.")
+
+    p.showPage()
+    p.save()
+    buffer.seek(0)
+    return FileResponse(
+        buffer,
+        as_attachment=False,
+        filename=f'Cotizacion_{cotizacion.numero_cotizacion or cotizacion.pk}.pdf',
+        content_type='application/pdf'
+    )
 @login_required
 @cargo_requerido(['admin', 'Gerente','cajero'])
 def modificar_cotizacion(request: HttpRequest, id: int) -> HttpResponse:
@@ -929,21 +1001,13 @@ def crear_factura(request: HttpRequest) -> HttpResponse:
                     if producto.stock < cantidad:
                         return HttpResponse(f"Stock insuficiente para {producto.nombre}", status=400)
 
-                    descuento_activo = Descuento.objects.filter(
-                        producto=producto,
-                        estado=1,
-                        fecha_inicio__lte=ahora,
-                        fecha_final__gte=ahora
-                    ).order_by('-fecha_inicio').first()
-
+                    descuento_total = Decimal(p.get('descuento_pct', 0))  # viene desde el frontend
                     precio_base = producto.precio
-                    if descuento_activo and descuento_activo.descuento > 0:
-                        descuento_decimal = Decimal(descuento_activo.descuento) / Decimal('100')
+                    precio_desc = precio_base
+
+                    if descuento_total > 0:
+                        descuento_decimal = descuento_total / Decimal('100')
                         precio_desc = (precio_base * (Decimal('1') - descuento_decimal)).quantize(Decimal('0.01'))
-                        descuento_total = Decimal(descuento_activo.descuento)
-                    else:
-                        precio_desc = precio_base
-                        descuento_total = Decimal('0')
 
                     producto.stock -= cantidad
                     producto.save()
@@ -968,20 +1032,32 @@ def crear_factura(request: HttpRequest) -> HttpResponse:
 
         return redirect(f"{reverse('crear_factura')}?pdf_factura={factura.pk}")
 
+    # Si es GET: preparar datos
+    ahora = timezone.now()
+    productos_queryset = Producto.objects.all()
+    productos = []
 
+    for p in productos_queryset:
+        descuento_activo = Descuento.objects.filter(
+            producto=p,
+            estado=1,
+            fecha_inicio__lte=ahora,
+            fecha_final__gte=ahora
+        ).order_by('-fecha_inicio').first()
 
+        productos.append({
+            'id': p.pk,
+            'nombre': p.nombre,
+            'numero_serie': p.numero_serie,
+            'precio': float(p.precio),
+            'stock': p.stock,
+            'descuento': float(descuento_activo.descuento) if descuento_activo else 0
+        })
 
-    # Si no es POST, se asume GET y se preparan datos para el formulario:
-    productos = list(Producto.objects.values('id', 'nombre', 'numero_serie', 'precio', 'stock'))
     clientes = list(Cliente.objects.values('id', 'nombre', 'cedula'))
     empleados = list(Empleado.objects.values('id', 'nombre', 'cargo'))
     sucursales = list(Sucursal.objects.values('id', 'nombre', 'direccion'))
     ivas = Iva.objects.all()
-
-    # Convertir Decimal a float para evitar problemas con JSON
-    for p in productos:
-        if isinstance(p['precio'], Decimal):
-            p['precio'] = float(p['precio'])
 
     context = {
         'productos_json': json.dumps(productos, ensure_ascii=False),
@@ -1064,7 +1140,7 @@ def consultar_factura(request, id=None):
 
 
 @login_required
-@cargo_requerido(['admin', 'Gerente','cajero'])
+@cargo_requerido(['admin', 'Gerente', 'cajero'])
 def exportar_pdf_factura(request):
     factura_id = request.GET.get('factura_id') or request.POST.get('factura_id')
 
@@ -1076,7 +1152,7 @@ def exportar_pdf_factura(request):
     except Factura.DoesNotExist:
         return HttpResponse("Factura no encontrada.", status=404)
 
-    sucursal = factura.sucursal  # Relación directa desde Factura
+    sucursal = factura.sucursal
 
     buffer = io.BytesIO()
     p = canvas.Canvas(buffer, pagesize=letter)
@@ -1084,7 +1160,7 @@ def exportar_pdf_factura(request):
     left_margin = 50
     top = height - 50
 
-    # --- ENCABEZADO EMPRESA Y FACTURA ---
+    # Encabezado empresa y factura
     p.setFont("Helvetica-Bold", 10)
     p.drawString(left_margin, top - 15, f"R.U.C.: {sucursal.ruc}")
     p.setFont("Helvetica", 9)
@@ -1096,7 +1172,6 @@ def exportar_pdf_factura(request):
     p.drawString(left_margin, top - 105, "Obligado a llevar contabilidad: SI")
     p.drawString(left_margin, top - 120, "Emisión: NORMAL")
 
-    # 🔶 Factura (derecha)
     right_x = width - 250
     p.setFont("Helvetica-Bold", 10)
     p.drawString(right_x, top - 15, f"FACTURA No.: {factura.numero_factura or 'N/A'}")
@@ -1106,45 +1181,56 @@ def exportar_pdf_factura(request):
     p.drawString(right_x, top - 45, getattr(factura, 'numero_autorizacion', '000000000000000'))
     p.setFont("Helvetica", 9)
     p.drawString(right_x, top - 60, f"Fecha Emisión: {factura.fecha_emision.strftime('%d/%m/%Y')}")
-    
+
     fecha_pago = getattr(factura, 'fecha_pago_limite', None)
     if fecha_pago:
         p.drawString(right_x, top - 75, f"Fecha Máx. de Pago: {fecha_pago.strftime('%d/%m/%Y')}")
 
-    # Línea separadora
     p.line(left_margin, top - 135, width - left_margin, top - 135)
 
-    # --- INFORMACIÓN DEL CLIENTE ---
+    # Información cliente
     p.setFont("Helvetica-Bold", 10)
     p.drawString(left_margin, top - 150, "CLIENTE:")
     p.setFont("Helvetica", 9)
     cliente = factura.cliente
-    p.drawString(left_margin + 70, top - 150, f"{cliente.nombre} {cliente.apellido}   C.I.: {cliente.cedula}")
+    p.drawString(left_margin + 70, top - 150, f"{cliente.nombre} {getattr(cliente, 'apellido', '')}   C.I.: {cliente.cedula}")
     p.drawString(left_margin + 70, top - 165, f"Dirección: {cliente.direccion or 'No disponible'}")
     p.drawString(left_margin + 70, top - 180, f"Teléfono: {cliente.telefono or 'N/A'}")
     p.drawString(left_margin + 70, top - 195, f"Email: {cliente.correo or 'N/A'}")
 
-    # --- DETALLES DE PRODUCTOS ---
+    # Detalles productos
     detalles = factura.detalles.filter(estado=1) # type: ignore
-    data = [["Producto", "Cantidad", "Precio Unitario", "Subtotal", "IVA", "Total"]]
+    data = [["Producto", "Cantidad", "Precio Unitario", "Descuento %", "Subtotal", "IVA", "Total"]]
 
-    subtotal_general, iva_general, total_general = 0, 0, 0
+    subtotal_general = Decimal('0.00')
+    iva_general = Decimal('0.00')
+    total_general = Decimal('0.00')
 
     for d in detalles:
-        subtotal_general += d.subtotal or 0
-        iva_general += d.iva_total or 0
-        total_general += d.total_calculado or 0
+        cant = Decimal(d.cantidad_producto)
+        precio = d.precio_factura or Decimal('0.00')
+        descuento_pct = Decimal(d.descuento_total) if d.descuento_total else Decimal('0.00')
+        iva_pct = Decimal(d.iva.porcentaje) if d.iva else Decimal('0.00')
+
+        subtotal = (precio * cant) * (Decimal('1.00') - (descuento_pct / Decimal('100.00')))
+        iva = subtotal * (iva_pct / Decimal('100.00'))
+        total = subtotal + iva
+
+        subtotal_general += subtotal
+        iva_general += iva
+        total_general += total
 
         data.append([
             str(d.producto),
-            str(d.cantidad_producto),
-            f"{d.precio_factura:.2f}",
-            f"{d.subtotal:.2f}",
-            f"{d.iva_total:.2f}",
-            f"{d.total_calculado:.2f}",
+            str(cant),
+            f"{precio:.2f}",
+            f"{descuento_pct:.2f}%",
+            f"{subtotal:.2f}",
+            f"{iva:.2f}",
+            f"{total:.2f}",
         ])
 
-    table = Table(data, colWidths=[140, 60, 70, 70, 60, 70])
+    table = Table(data, colWidths=[140, 60, 70, 70, 70, 60, 70])
     table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#dbe5f1")),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
@@ -1162,7 +1248,7 @@ def exportar_pdf_factura(request):
 
     table.drawOn(p, left_margin, table_y)
 
-    # --- TOTALES ---
+    # Totales
     y_totales = table_y - 40
     p.setFont("Helvetica-Bold", 10)
     p.setFillColor(colors.black)
@@ -1172,7 +1258,7 @@ def exportar_pdf_factura(request):
     p.setFillColor(colors.HexColor("#003366"))
     p.drawRightString(width - 60, y_totales - 35, f"TOTAL A PAGAR: {total_general:.2f}")
 
-    # --- FOOTER ---
+    # Footer
     p.setFont("Helvetica-Oblique", 8)
     p.setFillColor(colors.black)
     p.drawCentredString(width / 2, 30, "Gracias por su compra. Documento generado electrónicamente.")

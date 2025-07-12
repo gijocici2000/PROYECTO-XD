@@ -263,14 +263,20 @@ class Cotizacion(models.Model):
         }
 
 class Cotizacion_Detalle(models.Model):
-    cotizacion = models.ForeignKey(Cotizacion, on_delete=models.CASCADE, related_name='detalles')
-    producto = models.ForeignKey(Producto, on_delete=models.RESTRICT)
-    cantidad_producto = models.PositiveIntegerField()
+    cotizacion = models.ForeignKey(Cotizacion, related_name='detalles', on_delete=models.CASCADE)
+    producto = models.ForeignKey(Producto, on_delete=models.PROTECT)
+    cantidad_producto = models.IntegerField()
     precio_cotizado = models.DecimalField(max_digits=10, decimal_places=2)
     descuento_total = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
-    iva = models.ForeignKey(Iva, on_delete=models.RESTRICT, blank=True, null=True)
+    iva = models.ForeignKey(Iva, on_delete=models.SET_NULL, null=True, blank=True)
     creacion_usuario = models.CharField(max_length=150)
     modificacion_usuario = models.CharField(max_length=150)
+   
+
+    def __str__(self):
+        return f"{self.producto.nombre} x {self.cantidad_producto}"
+    
+
 # ---------------------------
 # FACTURA Y DETALLES
 # ---------------------------

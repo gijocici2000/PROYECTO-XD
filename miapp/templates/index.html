@@ -68,6 +68,7 @@
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item"><a class="nav-link" href="{% url 'index' %}">Inicio</a></li>
+
                     <!-- Menús desplegables -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Cliente</a>
@@ -76,14 +77,15 @@
                             <li><a class="dropdown-item" href="{% url 'crear_cliente' %}">Crear Cliente</a></li>
                         </ul>
                     </li>
+
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Libro</a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{% url 'consultar_producto' %}">Consultar Libro</a></li>
                             <li><a class="dropdown-item" href="{% url 'crear_producto' %}">Crear Libro</a></li>
-                           
                         </ul>
                     </li>
+
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Descuento</a>
                         <ul class="dropdown-menu">
@@ -91,6 +93,7 @@
                             <li><a class="dropdown-item" href="{% url 'crear_descuento' %}">Crear Descuento</a></li>
                         </ul>
                     </li>
+
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Proveedor</a>
                         <ul class="dropdown-menu">
@@ -98,14 +101,15 @@
                             <li><a class="dropdown-item" href="{% url 'crear_proveedor' %}">Crear Proveedor</a></li>
                         </ul>
                     </li>
+
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Cotizacion</a>
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Cotización</a>
                         <ul class="dropdown-menu">
-                        
-                            <li><a class="dropdown-item" href="{% url 'consultar_cotizacion' %}">Consultar Cotizacion</a></li>
-                            <li><a class="dropdown-item" href="{% url 'crear_cotizacion' %}">Crear Cotizacion</a></li>
+                            <li><a class="dropdown-item" href="{% url 'consultar_cotizacion' %}">Consultar Cotización</a></li>
+                            <li><a class="dropdown-item" href="{% url 'crear_cotizacion' %}">Crear Cotización</a></li>
                         </ul>
                     </li>
+
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Factura</a>
                         <ul class="dropdown-menu">
@@ -119,10 +123,11 @@
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                     {% if user.is_authenticated %}
                         <li class="nav-item">
+                            
                             <span class="nav-link disabled">👋 Hola, {{ user.username }}</span>
                         </li>
 
-                        {% if user.cargo.nombre == "admin" or user.cargo.nombre == "gerente" %}
+                        {% if user.userprofile.cargo.nombre == "admin" or user.userprofile.cargo.nombre == "gerente" %}
                             <li class="nav-item">
                                 <a class="nav-link btn btn-outline-light mx-2" href="{% url 'register' %}">
                                     ➕ Registrar usuario
@@ -143,7 +148,6 @@
                         </li>
                     {% endif %}
                 </ul>
-
             </div>
         </div>
     </nav>
@@ -190,11 +194,5 @@
 
     <!-- BLOQUE PARA CÓDIGO EXTRA DE CADA PLANTILLA -->
     {% block scripts %}{% endblock %}
-
 </body>
 </html>
-{% if messages %}
-  {% for message in messages %}
-    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-  {% endfor %}
-{% endif %}
