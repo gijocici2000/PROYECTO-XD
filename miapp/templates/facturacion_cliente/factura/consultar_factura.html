@@ -26,7 +26,7 @@
 
         <div class="col-md-3 d-flex align-items-end">
             <button type="submit" name="buscar_factura" class="btn btn-primary w-100 me-2">Buscar</button>
-            <button type="submit" name="exportar_factura" class="btn btn-danger w-100">Exportar PDF</button>
+            
         </div>
     </form>
 
@@ -62,26 +62,26 @@
                         {% endif %}
                     </td>
                     <td class="text-center">
-                         <form action="{% url 'anular_factura' f.factura_codigo %}" method="post" style="display:inline;" 
-                            onsubmit="return confirm('¿Está seguro que desea anular esta factura? Esta acción no la eliminará, solo cambiará su estado a anulada.');">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-sm btn-danger" title="Anular Factura">
-                                <i class="bi bi-x-circle-fill"></i> Anular
-                            </button>
-                        </form>
+    <form action="{% url 'anular_factura' f.id %}" method="post" style="display:inline;" 
+        onsubmit="return confirm('¿Está seguro que desea anular esta factura? Esta acción no la eliminará, solo cambiará su estado a anulada.');">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-danger" title="Anular Factura">
+            <i class="bi bi-x-circle-fill"></i> Anular
+        </button>
+    </form>
 
+    <form action="{% url 'eliminar_factura' f.id %}" method="post" style="display:inline;" onsubmit="return confirm('¿Está seguro que desea eliminar esta factura?');">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-danger" title="Eliminar">
+            <i class="bi bi-trash"></i> Eliminar
+        </button>
+    </form>
 
-                        <form action="{% url 'eliminar_factura' f.factura_codigo %}" method="post" style="display:inline;" onsubmit="return confirm('¿Está seguro que desea eliminar esta factura?');">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-sm btn-danger" title="Eliminar">
-                                <i class="bi bi-trash"></i> Eliminar
-                            </button>
-                        </form>
+    <a href="{% url 'exportar_pdf_factura' f.id %}" class="btn btn-sm btn-info ms-1" title="Descargar PDF" target="_blank">
+        <i class="bi bi-file-earmark-pdf"></i> PDF
+    </a>
+</td>
 
-                        <a href="{% url 'exportar_pdf_factura' %}?factura_id={{ f.factura_codigo }}" class="btn btn-sm btn-info ms-1" title="Descargar PDF" target="_blank">
-                            <i class="bi bi-file-earmark-pdf"></i> PDF
-                        </a>
-                    </td> 
                 </tr>
                 {% endfor %}
             </tbody>

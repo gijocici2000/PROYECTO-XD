@@ -130,17 +130,17 @@ function configurarBuscador(inputId, resultadosId, datos, callback, campos) {
 }
 
 configurarBuscador('buscador-cliente', 'resultados-cliente', clientes, c => {
-  document.getElementById('buscador-cliente').value = c.nombre;
+  document.getElementById('buscador-cliente').value = c.nombre,c.apellido,c.cedula;
   document.getElementById('cliente-id').value = c.id;
 }, ['nombre', 'cedula']);
 
 configurarBuscador('buscador-empleado', 'resultados-empleado', empleados, e => {
-  document.getElementById('buscador-empleado').value = e.nombre;
+  document.getElementById('buscador-empleado').value = e.nombre,c.apellido,c.cargo;
   document.getElementById('empleado-id').value = e.id;
-}, ['nombre', 'cargo']);
+}, ['nombre']);  // Aquí cambio a solo buscar por nombre
 
 configurarBuscador('buscador-sucursal', 'resultados-sucursal', sucursales, s => {
-  document.getElementById('buscador-sucursal').value = s.nombre;
+  document.getElementById('buscador-sucursal').value = s.nombre, s.direccion;
   document.getElementById('sucursal-id').value = s.id;
 }, ['nombre', 'direccion']);
 
@@ -225,10 +225,9 @@ function actualizarTabla() {
 }
 
 function eliminarProducto(i) {
-  if (confirm("¿Eliminar este producto?")) {
     productosCotizacion.splice(i, 1);
     actualizarTabla();
-  }
+  
 }
 
 // Ocultar resultados si se hace clic fuera

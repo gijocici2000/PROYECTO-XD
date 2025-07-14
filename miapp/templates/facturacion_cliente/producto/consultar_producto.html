@@ -48,8 +48,10 @@
     <table class="table table-striped table-hover">
       <thead class="table-primary text-center">
         <tr>
+          <th>Bodega</th>
           <th>Nombre</th>
           <th>Modelo</th>
+          <th>Lote</th>
           <th>Número de Serie</th>
           <th>Categoría</th>
           <th>Color</th>
@@ -64,8 +66,10 @@
         {% if productos %}
           {% for f in productos %}
           <tr class="text-center">
+            <td>{{ f.bodega.nombre }}</td>
             <td>{{ f.nombre }}</td>
             <td>{{ f.modelo }}</td>
+            <td>{{ f.lote }}</td>
             <td>{{ f.numero_serie }}</td>
             <td>{{ f.categoria }}</td>
             <td>{{ f.color }}</td>
@@ -73,7 +77,9 @@
             <td>${{ f.precio }}</td>
             <td><span class="badge bg-info text-dark">{{ f.stock }}</span></td>
             <td>
-              <a href="{% url 'modificar_producto' f.id %}" class="btn btn-info btn-sm">Modificar</a>
+              <a href="{% url 'modificar_producto' f.id %}" class="btn btn-sm btn-warning">
+    <i class="bi bi-pencil-square"></i> Modificar
+</a>
             </td>
             <td>
               <a href="{% url 'eliminar_producto' f.id %}" class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Estás seguro de eliminar este producto?')">Eliminar</a>

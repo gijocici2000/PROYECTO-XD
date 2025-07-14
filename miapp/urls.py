@@ -47,8 +47,8 @@ urlpatterns = [
     path('factura/anular/<int:id>/', views.anular_factura, name='anular_factura'),
     path('factura/eliminar/<int:id>/', views.eliminar_factura, name='eliminar_factura'),
     path('factura_detalle/crear/', views.crear_factura_detalle, name='crear_factura_detalle'),
-    path('exportar_pdf_factura/', views.exportar_pdf_factura, name='exportar_pdf_factura'),
-
+    path('exportacion_pdf_factura/<int:factura_id>', views.exportar_pdf_factura, name='exportar_pdf_factura'),
+    #path('iniciar-pago-tarjeta/', views.iniciar_pago_tarjeta, name='iniciar_pago_tarjeta'),#
 
 
 

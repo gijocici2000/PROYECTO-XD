@@ -1,22 +1,19 @@
 from pathlib import Path
 import os
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
+
+# BASE_DIR es la raíz del proyecto
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-dg6s3qegwpy1jy^jb@92=fs#5ajomzmeu=t1)+=6&ow8&us(@f'
 
-# SECURITY WARNING: don't run with debug turned on in production!
+# WARNING: nunca uses DEBUG=True en producción
 DEBUG = True
 
 ALLOWED_HOSTS = []
 
-
-# Application definition
-
+# Aplicaciones instaladas
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -24,9 +21,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'miapp'
+    
+    'miapp',  
 ]
 
+
+# Middleware
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -37,12 +37,14 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+# URLs del proyecto
 ROOT_URLCONF = 'proyecto.urls'
 
+# Configuración de plantillas
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR/'templates'],
+        'DIRS': [BASE_DIR / 'templates'],  # carpeta global de templates
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -57,82 +59,53 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'proyecto.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/3.2/ref/settings/#databases
-
+# Base de datos: SQLite (recomendada para desarrollo)
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME':  'db.sqlite3',
-        'USER': 'root',                      
-        'PASSWORD': '12345',               
-        'HOST': 'localhost',                    
-        'PORT': '3306',       
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
-
-# Password validation
-# https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
-
+# Validadores de contraseñas
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-
-# Internationalization
-# https://docs.djangoproject.com/en/3.2/topics/i18n/
-
-LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
-
+# Configuración de idioma y zona horaria
+LANGUAGE_CODE = 'es-ec'
+TIME_ZONE = 'America/Guayaquil'
 USE_I18N = True
-
 USE_L10N = True
-
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/3.2/howto/static-files/
-
+# Archivos estáticos
 STATIC_URL = '/static/'
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
-
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'miapp/static'),
-    
-
-
 ]
-# Configuración de autenticación
-LOGIN_URL = '/accounts/login/'
-LOGIN_REDIRECT_URL = '/producto/crear/'
-LOGOUT_REDIRECT_URL = '/accounts/login/'
 
+# Configuración para login/logout
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/login/'
 
-# settings.py
+# Configuración de correo (para recuperación de contraseña, notificaciones, etc.)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'gijocici@gmail.com'  
-EMAIL_HOST_PASSWORD = 'fzry ybtk thyl hfda'  
+EMAIL_HOST_USER = 'gijocici@gmail.com'
+EMAIL_HOST_PASSWORD = 'fzry ybtk thyl hfda'  # contraseña de aplicación de Gmail
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+# Tipo de clave primaria por defecto
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Configuración de la aplicación# PayPhone
+# PAYPHONE_API_KEY = 'tu_api_key'
+# PAYPHONE_APP_CODE = 'tu_app_code'
+# PAYPHONE_STORE_ID = 'Empresa'

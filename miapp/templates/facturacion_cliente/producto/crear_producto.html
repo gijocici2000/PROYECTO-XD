@@ -19,6 +19,21 @@
         {% endfor %}
       </div>
 
+      <div class="mb-3">
+        {{ form_Producto.lote.label_tag }}
+        {{ form_Producto.lote }}
+        {% for error in form_Producto.lote.errors %}
+          <div class="text-danger small">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="mb-3">
+        {{ form_Producto.bodega.label_tag }}
+        {{ form_Producto.bodega }}
+        {% for error in form_Producto.bodega.errors %}
+          <div class="text-danger small">{{ error }}</div>
+        {% endfor %}
+      </div>
       <div class=" mb-3">
         {{ form_Producto.nombre.label_tag }}
         {{ form_Producto.nombre }}

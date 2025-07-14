@@ -34,10 +34,26 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 #################################login y registro de usuarios##########################################
 
 
+@login_required
 def index(request):
     cargos_permitidos = ['admin', 'gerente']
-    return render(request, 'index.html',{'cargos_permitidos': cargos_permitidos})
 
+    try:
+        cargo_usuario = request.user.empleado.cargo.nombre.lower()
+    except Empleado.DoesNotExist:
+        cargo_usuario = ''
+
+    total_productos = Producto.objects.count()
+    total_clientes = Cliente.objects.count()
+    total_empleados = Empleado.objects.count()
+
+    return render(request, 'index.html', {
+        'cargos_permitidos': cargos_permitidos,
+        'cargo_usuario': cargo_usuario,
+        'total_productos': total_productos,
+        'total_clientes': total_clientes,
+        'total_empleados': total_empleados
+    })
 def cargo_requerido(nombre_cargos):
     def decorador(view_func):
         def wrapper(request, *args, **kwargs):
@@ -56,14 +72,12 @@ def cargo_requerido(nombre_cargos):
     return decorador
 
 
-@login_required
-@cargo_requerido(['admin', 'gerente'])
 def register_view(request):
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
-            form.save()
-            messages.success(request, 'Usuario creado correctamente.')
+            form.save()  # Aquí crea User y Empleado juntos
+            messages.success(request, "Usuario registrado correctamente.")
             return redirect('login')
     else:
         form = CustomUserCreationForm()
@@ -91,7 +105,7 @@ def no_autorizado(request):
 ######################################### EMPLEADO ########################################
 
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
+@cargo_requerido(['admin', 'Gerente','supervisor'])
 def crear_empleado(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         form = EmpleadoForm(request.POST, request.FILES)
@@ -105,7 +119,7 @@ def crear_empleado(request: HttpRequest) -> HttpResponse:
     return render(request, "empleado/crear_empleado.html", {"form": form, "edit_mode": False})
  
 @login_required
-@cargo_requerido(['admin', 'Gerente'])   
+@cargo_requerido(['admin', 'Gerente','supervisor'])   
 def modificar_empleado(request: HttpRequest, id: int) -> HttpResponse:
     empleado = get_object_or_404(Empleado, id=id)
     if request.method == "POST":
@@ -119,7 +133,7 @@ def modificar_empleado(request: HttpRequest, id: int) -> HttpResponse:
         form = EmpleadoForm(instance=empleado)
     return render(request, "empleado/modificar_empleado.html", {"form": form, "empleado": empleado, "edit_mode": True})
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
+@cargo_requerido(['admin', 'Gerente','supervisor'])
 def consultar_empleado(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         if 'buscar_empleado' in request.POST:
@@ -143,7 +157,7 @@ def consultar_empleado(request: HttpRequest) -> HttpResponse:
     empleados = None
     return render(request, "empleado/consultar_empleado.html", {'buscador_Empleado': buscarEmpleadoForm, 'empleados': empleados})
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
+@cargo_requerido(['admin', 'Gerente','supervisor'])
 def eliminar_empleado(request: HttpRequest, id: int) -> HttpResponse:
     empleado = get_object_or_404(Empleado, id=id)
     if request.method == "POST":
@@ -155,7 +169,7 @@ def eliminar_empleado(request: HttpRequest, id: int) -> HttpResponse:
 
 ########################################## CLIENTE ########################################
 @login_required
-@cargo_requerido(['admin', 'gerente','cajero' ,])
+@cargo_requerido(['admin', 'gerente','cajero','supervisor' ,])
 def crear_cliente(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         form = ClienteForm(data=request.POST, files=request.FILES)
@@ -195,7 +209,7 @@ def consultar_cliente(request: HttpRequest) -> HttpResponse:
     return render(request, "facturacion_cliente/cliente/consultar_cliente.html", {'buscador_Cliente': buscarClienteForm, 'clientes': clientes})
 
 @login_required
-@cargo_requerido(['Admin', 'Gerente','cajero'])
+@cargo_requerido(['Admin', 'Gerente','cajero','supervisor'])
 def modificar_cliente(request: HttpRequest, id: int) -> HttpResponse:
     cliente = get_object_or_404(Cliente, id=id)
     if request.method == "POST":
@@ -292,7 +306,7 @@ def crear_producto(request):
         'productos_json': json.dumps(productos, ensure_ascii=False),
     })
 @login_required
-@cargo_requerido(['Admin', 'Gerente','cajero'])
+@cargo_requerido(['Admin', 'Gerente','cajero','supervisor'])
 def consultar_producto(request):
     productos = None
     buscarProductoForm = BuscarProductoForm(request.POST or None)
@@ -329,39 +343,51 @@ def exportar_pdf_producto(request):
     elements = []
     styles = getSampleStyleSheet()
 
-    # Información de encabezado
     empresa_nombre = "📚 Empresa "
     fecha_actual = timezone.now().strftime("%d/%m/%Y %H:%M:%S")
     usuario = request.user.username.upper()
 
-    # Títulos e información del encabezado
     elements.append(Paragraph(empresa_nombre, styles['Title']))
     elements.append(Paragraph("Reporte de productos registrados", styles['Heading2']))
     elements.append(Paragraph(f"Fecha de creación del reporte: {fecha_actual}", styles['Normal']))
     elements.append(Paragraph(f"Generado por: {usuario}", styles['Normal']))
     elements.append(Spacer(1, 12))
 
-    # Encabezado de tabla
-    encabezados = ["#", "Nombre", "Modelo", "N° Serie", "Color", "Categoría", "Precio", "Stock", "Estado"]
+    encabezados = ["#", "Bodega", "Nombre", "Modelo", "Lote", "N° Serie", "Color", "Categoría", "Precio", "Stock", "Estado"]
     data = [encabezados]
 
-    # Datos
     productos = Producto.objects.all().order_by("nombre")
     for i, p in enumerate(productos, start=1):
         data.append([
             i,
+            p.bodega.nombre if p.bodega else "Sin Bodega",
             p.nombre,
             p.modelo,
+            p.lote,
             p.numero_serie,
             p.color,
             p.categoria,
             f"${p.precio:.2f}",
             p.stock,
             "Activo" if p.estado == 1 else "Inactivo"
-        ]) # type: ignore
+                    ]) # type: ignore
 
-    # Tabla con estilo
-    table = Table(data, repeatRows=1)
+    # Ajuste de ancho de columnas
+    col_widths = [
+        25,   # #
+        70,   # Bodega
+        70,   # Nombre
+        60,   # Modelo
+        50,   # Lote
+        60,   # N° Serie
+        50,   # Color
+        60,   # Categoría
+        50,   # Precio
+        40,   # Stock
+        50    # Estado
+    ]
+
+    table = Table(data, colWidths=col_widths, repeatRows=1)
     table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0d6efd")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
@@ -374,8 +400,6 @@ def exportar_pdf_producto(request):
     ]))
 
     elements.append(table)
-
-    # Generar PDF
     doc.build(elements)
     buffer.seek(0)
     return HttpResponse(buffer, content_type='application/pdf')
@@ -383,26 +407,28 @@ def exportar_pdf_producto(request):
 @login_required
 @cargo_requerido(['Admin', 'Gerente'])
 def modificar_producto(request, id):
-    producto = get_object_or_404(Producto, id=id)
+    producto = get_object_or_404(Producto, pk=id)
 
     if request.method == 'POST':
         form = ProductoForm(request.POST, instance=producto)
         if form.is_valid():
-            producto = form.save(commit=False)
-            producto.modificacion_usuario = request.user.username
-            producto.save()
-            return redirect('consultar_producto')  # o a donde quieras redirigir
+            form.save()
+            mensaje = "Producto modificado correctamente"
+            return render(request, 'facturacion_cliente/producto/modificar_producto.html', {
+                'form_Producto': form,
+                'mensaje': mensaje
+            })
+        else:
+            print(form.errors)  # Para depurar errores del formulario
     else:
         form = ProductoForm(instance=producto)
 
     return render(request, 'facturacion_cliente/producto/modificar_producto.html', {
-        'form_Producto': form,
-        'producto': producto
+        'form_Producto': form
     })
 
-
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
+@cargo_requerido(['admin', 'Gerente','supervisor'])
 def eliminar_producto(request: HttpRequest, id: int) -> HttpResponse:
     producto = get_object_or_404(Producto, id=id)
     if request.method == "POST":
@@ -423,7 +449,7 @@ def filtrar_descuentos(nombre: str = '', porcentaje: Optional[float] = None):
 
 ##########################-------------------DESCUEENTO-------------##########################################
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
+@cargo_requerido(['admin', 'Gerente','supervisor'])
 def crear_descuento(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         form = DescuentoForm(request.POST, request.FILES)
@@ -439,7 +465,7 @@ def crear_descuento(request: HttpRequest) -> HttpResponse:
     })
 
 @login_required
-@cargo_requerido(['admin', 'Gerente','cajero'])
+@cargo_requerido(['admin', 'Gerente','supervisor','cajero'])
 def consultar_descuento(request: HttpRequest) -> HttpResponse:
     descuentos = None
     buscarDescuentoForm = BuscarDescuentoForm(request.POST or None)
@@ -459,7 +485,7 @@ def consultar_descuento(request: HttpRequest) -> HttpResponse:
     })
 
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
+@cargo_requerido(['admin', 'Gerente','supervisor'])
 def exportar_pdf_descuento(request: HttpRequest) -> HttpResponse:
     response = HttpResponse(content_type="application/pdf")
     response["Content-Disposition"] = 'attachment; filename="listado_descuentos.pdf"'
@@ -518,7 +544,7 @@ def exportar_pdf_descuento(request: HttpRequest) -> HttpResponse:
     response.write(pdf)
     return response
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
+@cargo_requerido(['admin', 'Gerente','supervisor'])
 def modificar_descuento(request: HttpRequest, id: int) -> HttpResponse:
     descuento = get_object_or_404(Descuento, id=id)
     if request.method == "POST":
@@ -536,7 +562,7 @@ def modificar_descuento(request: HttpRequest, id: int) -> HttpResponse:
     })
 
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
+@cargo_requerido(['admin', 'Gerente','supervisor'])
 def eliminar_descuento(request: HttpRequest, id: int) -> HttpResponse:
     descuento = get_object_or_404(Descuento, id=id)
     if request.method == "POST":
@@ -545,12 +571,123 @@ def eliminar_descuento(request: HttpRequest, id: int) -> HttpResponse:
     return render(request, "facturacion_cliente/descuento/eliminar_descuento.html", {
         "descuento": descuento
     })
+@login_required
+@cargo_requerido(['admin', 'Gerente','supervisor'])
+def crear_proveedor(request: HttpRequest) -> HttpResponse:
+    if request.method == "POST":
+        form = ProveedorForm(data=request.POST, files=request.FILES)
+        if form.is_valid():
+            form.save()
+            return redirect("consultar_proveedor")
+    else:
+        form = ProveedorForm()
+    context = {"form_Proveedor": form, "edit_mode": False}
+    return render(request, "administrativo/proveedor/crear_proveedor.html", context)
 
+@login_required
+@cargo_requerido(['admin', 'Gerente','supervisor','cajero'])
+def consultar_proveedor(request: HttpRequest) -> HttpResponse:
+    if request.method == "POST":
+        if 'buscar_proveedor' in request.POST:
+            buscarProveedorForm = BuscarProveedorForm(request.POST)
+            if buscarProveedorForm.is_valid():
+                nombre = buscarProveedorForm.cleaned_data.get('nombre', '')
+                ruc = buscarProveedorForm.cleaned_data.get('ruc', '')
+                fecha = buscarProveedorForm.cleaned_data.get('fecha', None)
+
+                proveedores = Proveedor.objects.filter(
+                    Q(nombre__icontains=nombre) if nombre else Q(),
+                    Q(ruc__icontains=ruc) if ruc else Q(),
+                    Q(fecha_creacion__lte=fecha) if fecha else Q(),
+                )
+                context = {'buscador_Proveedor': buscarProveedorForm, 'proveedores': proveedores}
+                return render(request, "administrativo/proveedor/consultar_proveedor.html", context)
+
+        elif 'exportar_proveedor' in request.POST:
+            return exportar_pdf_proveedor(request)
+        
+    buscarProveedorForm = BuscarProveedorForm()
+    proveedores = None
+    return render(request, "administrativo/proveedor/consultar_proveedor.html", {'buscador_Proveedor': buscarProveedorForm, 'proveedores': proveedores})
+
+
+@login_required
+@cargo_requerido(['admin', 'Gerente','supervisor'])        
+def exportar_pdf_proveedor(request: HttpRequest) -> HttpResponse:
+        response = HttpResponse(content_type="application/pdf")
+        response["Content-Disposition"] = 'attachment; filename="consultar_proveedor.pdf"'
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            rightMargin=inch / 4,
+            leftMargin=inch / 4,
+            topMargin=inch / 2,
+            bottomMargin=inch / 4,
+            pagesize=A4
+        )
+        styles = getSampleStyleSheet()
+        styles.add(ParagraphStyle(name='centered', alignment=TA_CENTER))
+        styles.add(ParagraphStyle(name='RightAlign', alignment=TA_RIGHT))
+
+        lista_proveedor = []
+        header = Paragraph("Listado de Proveedores", styles['Heading1'])
+        lista_proveedor.append(header)
+
+        buscarProveedorForm = BuscarProveedorForm(request.POST)
+        if buscarProveedorForm.is_valid():
+            nombre = buscarProveedorForm.cleaned_data.get('nombre', '')
+            ruc = buscarProveedorForm.cleaned_data.get('ruc', '')
+            fecha = buscarProveedorForm.cleaned_data.get('fecha', None)
+
+            proveedores = Proveedor.objects.filter(
+                Q(nombre__icontains=nombre) if nombre else Q(),
+                Q(ruc__icontains=ruc) if ruc else Q(),
+                Q(fecha_creacion__lte=fecha) if fecha else Q(),
+            )
+            headings = ('Id', 'Nombre', 'RUC', 'Teléfono', 'Correo')
+            allproveedores = [(p.pk, p.nombre, p.ruc, p.telefono, p.correo) for p in proveedores]
+
+            t = Table([headings] + allproveedores)
+            t.setStyle(TableStyle([
+                ('GRID', (0, 0), (-1, -1), 1, colors.springgreen),
+                ('LINEBELOW', (0, 0), (-1, 0), 2, colors.springgreen),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.springgreen),
+            ]))
+            lista_proveedor.append(t)
+
+        doc.build(lista_proveedor)
+        response.write(buffer.getvalue())
+        buffer.close()
+        return response
+
+   
+@login_required
+@cargo_requerido(['admin', 'Gerente','supervisor'])
+def modificar_proveedor(request: HttpRequest, id: int) -> HttpResponse:
+    proveedor = get_object_or_404(Proveedor, id=id)
+    if request.method == "POST":
+        form = ProveedorForm(data=request.POST, files=request.FILES, instance=proveedor)
+        if form.is_valid():
+            form.save()
+            return redirect("consultar_proveedor")
+    else:
+        form = ProveedorForm(instance=proveedor)
+    context = {"form": form, "proveedor": proveedor, "edit_mode": True}
+    return render(request, "administrativo/proveedor/modificar_proveedor.html", context)
+
+@login_required
+@cargo_requerido(['admin', 'Gerente','supervisor'])
+def eliminar_proveedor(request: HttpRequest, id: int) -> HttpResponse:
+    proveedor = get_object_or_404(Proveedor, id=id)
+    if request.method == "POST":
+        proveedor.delete()
+        return redirect("consultar_proveedor")
+    return render(request, "administrativo/proveedor/eliminar_proveedor.html", {"proveedor": proveedor})
 
 ####################################### ------cotización -------------------    ############################
 @login_required
-@cargo_requerido(['admin', 'Gerente', 'cajero'])
-def crear_cotizacion(request):
+@cargo_requerido(['admin', 'Gerente', 'cajero','supervisor' ])
+def crear_cotizacion(request: HttpRequest) -> HttpResponse:
     if request.method == 'POST':
         cliente_id = request.POST.get('cliente_id')
         empleado_id = request.POST.get('empleado_id')
@@ -664,154 +801,134 @@ def crear_cotizacion(request):
     return render(request, 'facturacion_cliente/cotizacion/crear_cotizacion.html', context)
 
 @login_required
-@cargo_requerido(['admin', 'Gerente','cajero'])
-def consultar_cotizacion(request):
-    desde = request.GET.get('desde')
-    hasta = request.GET.get('hasta')
+@cargo_requerido(['admin', 'Gerente', 'cajero','supervisor' ])
+def consultar_cotizacion(request, id=None):
+    cotizacion = None
+    if id is not None:
+        cotizacion = get_object_or_404(Cotizacion, pk=id)
+
+    cotizaciones = None
+    buscar_form = BuscarCotizacionForm(request.POST or None)
     filtros = Q()
 
-    if desde and hasta:
-        filtros &= Q(fecha_emision__range=[desde, hasta])
-    elif desde:
-        filtros &= Q(fecha_emision__gte=desde)
-    elif hasta:
-        filtros &= Q(fecha_emision__lte=hasta)
+    if request.method == "POST":
+        if 'buscar_cotizacion' in request.POST and buscar_form.is_valid():
+            cliente = buscar_form.cleaned_data.get('cliente_nombre')
+            desde = buscar_form.cleaned_data.get('desde')
+            hasta = buscar_form.cleaned_data.get('hasta')
 
-    cotizaciones = Cotizacion.objects.filter(filtros).order_by('-fecha_emision')
+            if cliente:
+                filtros &= (
+                    Q(cliente__nombre__icontains=cliente) |
+                    Q(cliente__cedula__icontains=cliente)
+                )
+            if desde and hasta:
+                filtros &= Q(fecha_emision__range=(desde, hasta))
+            elif desde:
+                filtros &= Q(fecha_emision__gte=desde)
+            elif hasta:
+                filtros &= Q(fecha_emision__lte=hasta)
 
-    # Calcular total para mostrar en la tabla
-    for c in cotizaciones:
-        totales = c.get_totales()
-        c.total_calculado = totales['total'] # type: ignore
+            cotizaciones = Cotizacion.objects.filter(filtros).order_by('-fecha_emision')
+
+            for c in cotizaciones:
+                totales = c.get_totales()
+                c.total_calculado = totales['total']  # type: ignore
+
+        elif 'exportar_pdf_cotizacion' in request.POST:
+            if cotizacion and cotizacion.id:
+                return exportar_pdf_cotizacion(request, cotizacion.id)
+            else:
+                messages.error(request, "No se ha seleccionado una cotización para exportar.")
 
     context = {
+        'buscador_cotizacion': buscar_form,
         'cotizaciones': cotizaciones,
-        'desde': desde or '',
-        'hasta': hasta or '',
+        'cotizacion': cotizacion,
     }
     return render(request, 'facturacion_cliente/cotizacion/consultar_cotizacion.html', context)
 
 
 @login_required
-@cargo_requerido(['admin', 'Gerente', 'cajero'])
+@cargo_requerido(['admin', 'Gerente', 'cajero','supervisor' ])
 def exportar_pdf_cotizacion(request, cotizacion_id):
     try:
         cotizacion = Cotizacion.objects.get(pk=cotizacion_id)
     except Cotizacion.DoesNotExist:
         return HttpResponse("Cotización no encontrada.", status=404)
 
+    detalles = cotizacion.detalles.all() # type: ignore
     sucursal = cotizacion.sucursal
 
     buffer = io.BytesIO()
     p = canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
-    left_margin = 50
-    top = height - 50
+    y = height - 50
 
-    # Encabezado con info de la empresa/sucursal
-    p.setFont("Helvetica-Bold", 10)
-    p.drawString(left_margin, top - 15, f"R.U.C.: {sucursal.ruc}")
-    p.setFont("Helvetica", 9)
-    p.drawString(left_margin, top - 30, sucursal.nombre.upper())
-    p.drawString(left_margin, top - 45, f"Local: {sucursal.local or 'N/A'}")
-    p.drawString(left_margin, top - 60, f"Dirección: {sucursal.direccion}")
-    p.drawString(left_margin, top - 75, f"Teléfono: {sucursal.telefono or 'N/A'}")
-    p.drawString(left_margin, top - 90, f"Correo: {sucursal.correo or 'N/A'}")
+    p.setFont("Helvetica-Bold", 14)
+    p.drawString(50, y, f"Reporte de Cotización #{cotizacion.numero_cotizacion or cotizacion.id}")
+    y -= 30
 
-    # Datos de la cotización (derecha)
-    right_x = width - 250
-    p.setFont("Helvetica-Bold", 10)
-    p.drawString(right_x, top - 15, f"COTIZACIÓN No.: {cotizacion.numero_cotizacion or cotizacion.pk}")
-    p.setFont("Helvetica", 9)
-    p.drawString(right_x, top - 30, f"Fecha Emisión: {cotizacion.fecha_emision.strftime('%d/%m/%Y')}")
+    # Info general
+    p.setFont("Helvetica", 10)
+    p.drawString(50, y, f"Sucursal: {sucursal.nombre}")
+    y -= 20
+    p.drawString(50, y, f"Fecha emisión: {cotizacion.fecha_emision.strftime('%d/%m/%Y')}")
+    y -= 20
+    p.drawString(50, y, f"Cliente: {cotizacion.cliente.nombre}")
+    y -= 30
 
-    # Línea separadora
-    p.line(left_margin, top - 100, width - left_margin, top - 100)
+    # Encabezados
+    p.setFont("Helvetica-Bold", 9)
+    p.drawString(50, y, "Producto")
+    p.drawString(160, y, "Cant.")
+    p.drawString(200, y, "P. Unit")
+    p.drawString(270, y, "Desc.")
+    p.drawString(320, y, "IVA %")
+    p.drawString(380, y, "Subtotal")
+    p.drawString(470, y, "Total")
+    y -= 20
 
-    # Información del cliente
-    p.setFont("Helvetica-Bold", 10)
-    p.drawString(left_margin, top - 115, "CLIENTE:")
-    p.setFont("Helvetica", 9)
-    cliente = cotizacion.cliente
-    p.drawString(left_margin + 70, top - 115, f"{cliente.nombre} {getattr(cliente, 'apellido', '')}   C.I.: {cliente.cedula}")
-    p.drawString(left_margin + 70, top - 130, f"Dirección: {getattr(cliente, 'direccion', 'No disponible')}")
-    p.drawString(left_margin + 70, top - 145, f"Teléfono: {getattr(cliente, 'telefono', 'N/A')}")
-    p.drawString(left_margin + 70, top - 160, f"Email: {getattr(cliente, 'correo', 'N/A')}")
-
-    # Detalles de productos (quitamos el filtro 'estado')
-    detalles = cotizacion.detalles.all()
-
-    data = [["Producto", "Cantidad", "Precio Unitario", "Subtotal", "Descuento (%)", "IVA", "Total"]]
-
-    subtotal_general = Decimal('0')
-    iva_general = Decimal('0')
-    total_general = Decimal('0')
-
+    total_general = Decimal('0.00')
     for d in detalles:
-        subtotal = (d.precio_cotizado * d.cantidad_producto).quantize(Decimal('0.01'))
-        descuento = d.descuento_total  # Porcentaje, ejemplo 10
-        iva_valor = d.iva_total or Decimal('0.00')
-        total = d.total_calculado or Decimal('0.00')
+        producto = d.producto.nombre
+        cantidad = d.cantidad_producto
+        precio = d.precio_cotizado
+        descuento = d.descuento_total or Decimal('0.00')
+        iva_porcentaje = d.iva.porcentaje if d.iva else Decimal('0.00')
 
-        subtotal_general += subtotal
-        iva_general += iva_valor
+        subtotal = cantidad * precio
+        subtotal_desc = subtotal - descuento
+        iva_valor = subtotal_desc * (iva_porcentaje / 100)
+        total = subtotal_desc + iva_valor
         total_general += total
 
-        data.append([
-            str(d.producto),
-            str(d.cantidad_producto),
-            f"{d.precio_cotizado:.2f}",
-            f"{subtotal:.2f}",
-            f"{descuento}%",
-            f"{iva_valor:.2f}",
-            f"{total:.2f}",
-        ])
+        p.setFont("Helvetica", 9)
+        p.drawString(50, y, producto[:20])
+        p.drawString(160, y, str(cantidad))
+        p.drawString(200, y, f"${precio:.2f}")
+        p.drawString(270, y, f"${descuento:.2f}")
+        p.drawString(320, y, f"{iva_porcentaje:.0f}%")
+        p.drawString(380, y, f"${subtotal_desc:.2f}")
+        p.drawString(470, y, f"${total:.2f}")
+        y -= 18
 
-    # Crear tabla con estilos
-    table = Table(data, colWidths=[140, 60, 70, 70, 70, 60, 70])
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#dbe5f1")),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 8.5),
-        ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('GRID', (0, 0), (-1, -1), 0.4, colors.grey),
-    ]))
+        if y < 100:
+            p.showPage()
+            y = height - 50
 
-    table_width, table_height = table.wrap(0, 0)
-    table_y = top - 190 - table_height
-    if table_y < 100:
-        p.showPage()
-        table_y = height - 100
-
-    table.drawOn(p, left_margin, table_y)
-
-    # Totales generales
-    y_totales = table_y - 40
-    p.setFont("Helvetica-Bold", 10)
-    p.setFillColor(colors.black)
-    p.drawRightString(width - 60, y_totales, f"Subtotal: {subtotal_general:.2f}")
-    p.drawRightString(width - 60, y_totales - 15, f"IVA Total: {iva_general:.2f}")
-    p.setFont("Helvetica-Bold", 12)
-    p.setFillColor(colors.HexColor("#003366"))
-    p.drawRightString(width - 60, y_totales - 35, f"TOTAL: {total_general:.2f}")
-
-    # Pie de página
-    p.setFont("Helvetica-Oblique", 8)
-    p.setFillColor(colors.black)
-    p.drawCentredString(width / 2, 30, "Documento generado electrónicamente.")
+    # Totales
+    y -= 10
+    p.setFont("Helvetica-Bold", 11)
+    p.drawString(370, y, "TOTAL GENERAL:")
+    p.drawString(470, y, f"${total_general:.2f}")
 
     p.showPage()
     p.save()
     buffer.seek(0)
-    return FileResponse(
-        buffer,
-        as_attachment=False,
-        filename=f'Cotizacion_{cotizacion.numero_cotizacion or cotizacion.pk}.pdf',
-        content_type='application/pdf'
-    )
+    return HttpResponse(buffer, content_type='application/pdf')
 @login_required
-@cargo_requerido(['admin', 'Gerente','cajero'])
+@cargo_requerido(['admin', 'Gerente','supervisor','cajero'])
 def modificar_cotizacion(request: HttpRequest, id: int) -> HttpResponse:
     cotizacion = get_object_or_404(Cotizacion, id=id)
     if request.method == "POST":
@@ -835,7 +952,7 @@ def modificar_cotizacion(request: HttpRequest, id: int) -> HttpResponse:
 
 
 @login_required
-@cargo_requerido(['admin', 'Gerente','cajero'])
+@cargo_requerido(['admin', 'Gerente','supervisor','cajero'])
 def eliminar_cotizacion(request, cotizacion_id):
     cotizacion = get_object_or_404(Cotizacion, id=cotizacion_id)
 
@@ -856,7 +973,7 @@ def eliminar_cotizacion(request, cotizacion_id):
 
 
 @login_required
-@cargo_requerido(['admin', 'Gerente','cajero'])
+@cargo_requerido(['admin', 'Gerente','supervisor','cajero'])
 def crear_cotizacion_detalle(request):
     if request.method == "POST":
         form = CotizacionDetalleForm(request.POST)
@@ -878,7 +995,7 @@ def crear_cotizacion_detalle(request):
     return render(request, "facturacion_cliente/cotizacion_detalle/crear_cotizacion_detalle.html", context)
 
 @login_required
-@cargo_requerido(['admin', 'Gerente','cajero'])
+@cargo_requerido(['admin', 'Gerente','supervisor','cajero'])
 def consultar_cotizacion_detalle(request):
     detalles = None
     buscar_form = BuscarCotizacionDetalleForm()
@@ -912,7 +1029,7 @@ def consultar_cotizacion_detalle(request):
     }
     return render(request, "facturacion_cliente/cotizacion_detalle/consultar_cotizacion_detalle.html", context)
 @login_required
-@cargo_requerido(['admin', 'Gerente','cajero'])
+@cargo_requerido(['admin', 'Gerente','supervisor','cajero'])
 def eliminar_cotizacion_detalle(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         cotizacion_detalle_id = request.POST.get('cotizacion_detalle_id')
@@ -929,7 +1046,7 @@ def eliminar_cotizacion_detalle(request: HttpRequest) -> HttpResponse:
     # Si no es POST, puedes mostrar una confirmación o redirigir
     return render(request, "facturacion_cliente/cotizacion_detalle/eliminar_cotizacion_detalle.html")
 @login_required
-@cargo_requerido(['admin', 'Gerente','cajero'])
+@cargo_requerido(['admin', 'Gerente','supervisor','cajero'])
 def modificar_cotizacion_detalle(request: HttpRequest, id: int) -> HttpResponse:
     cotizacion_detalle = get_object_or_404(Cotizacion_Detalle, id=id)
     
@@ -960,7 +1077,7 @@ def modificar_cotizacion_detalle(request: HttpRequest, id: int) -> HttpResponse:
 
 # Tus imports y modelos aquí (Factura, Producto, Iva, Factura_Detalle, etc.)
 @login_required
-@cargo_requerido(['admin', 'Gerente','cajero'])
+@cargo_requerido(['admin', 'Gerente','supervisor','cajero'])
 def crear_factura(request: HttpRequest) -> HttpResponse:
     if request.method == 'POST':
         cliente_id = request.POST.get('cliente_id')
@@ -1030,7 +1147,10 @@ def crear_factura(request: HttpRequest) -> HttpResponse:
         except Exception as e:
             return HttpResponse(f"Error al procesar la factura: {str(e)}", status=500)
 
-        return redirect(f"{reverse('crear_factura')}?pdf_factura={factura.pk}")
+        pdf_factura = reverse('exportar_pdf_factura', kwargs={'factura_id': factura.id})
+        return JsonResponse({'success': True, 'pdf_factura': pdf_factura})
+
+
 
     # Si es GET: preparar datos
     ahora = timezone.now()
@@ -1071,7 +1191,7 @@ def crear_factura(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@cargo_requerido(['admin', 'Gerente','cajero'])
+@cargo_requerido(['admin', 'Gerente','supervisor','cajero'])
 def crear_factura_detalle(request):
     if request.method == 'POST':
         factura_form = FacturaForm(request.POST)
@@ -1095,7 +1215,7 @@ def crear_factura_detalle(request):
     return render(request, "facturacion_cliente/factura/consultar_factura.html", context)
 
 @login_required
-@cargo_requerido(['admin', 'Gerente','cajero'])
+@cargo_requerido(['admin', 'Gerente','supervisor','cajero'])
 def consultar_factura(request, id=None):
     factura = None
     if id is not None:
@@ -1128,7 +1248,9 @@ def consultar_factura(request, id=None):
                 f.total_calculado = total  # type: ignore
 
         elif 'exportar_factura' in request.POST:
-            return exportar_pdf_factura(request)
+            if factura and factura.id:
+                return exportar_pdf_factura(request, factura.id)
+            
 
     context = {
         'buscador_factura': buscar_form,
@@ -1140,10 +1262,9 @@ def consultar_factura(request, id=None):
 
 
 @login_required
-@cargo_requerido(['admin', 'Gerente', 'cajero'])
-def exportar_pdf_factura(request):
-    factura_id = request.GET.get('factura_id') or request.POST.get('factura_id')
-
+@cargo_requerido(['admin', 'Gerente', 'cajero','supervisor' ])
+def exportar_pdf_factura(request,factura_id):
+    
     if not factura_id:
         return HttpResponse("ID de factura no proporcionado.", status=400)
 
@@ -1266,12 +1387,15 @@ def exportar_pdf_factura(request):
     p.showPage()
     p.save()
     buffer.seek(0)
-    return FileResponse(buffer, as_attachment=False, filename=f'Factura_{factura.numero_factura or factura.pk}.pdf', content_type='application/pdf')
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="factura_{factura.id}.pdf"'
+    return response
+
 
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
-def modificar_factura(request, id):
-    factura = get_object_or_404(Factura, factura_codigo=id)
+@cargo_requerido(['admin', 'Gerente','supervisor'])
+def modificar_factura(request: HttpRequest, id: int) -> HttpResponse:
+    factura = get_object_or_404(Factura, id=id)
     if request.method == "POST":
         form = FacturaForm(request.POST, instance=factura)
         if form.is_valid():
@@ -1302,11 +1426,11 @@ def anular_factura(request, id):
 
     return render(request, 'factura/anular.html', {'factura': factura})
 @login_required
-@cargo_requerido(['admin', 'Gerente'])
+@cargo_requerido(['admin', 'Gerente','supervisor'])
 
 
 def eliminar_factura(request, id):
-    factura = get_object_or_404(Factura, factura_codigo=id)
+    factura = get_object_or_404(Factura, id=id)
 
     if request.method == "POST":
         detalles = Factura_Detalle.objects.filter(factura=factura)
@@ -1330,117 +1454,7 @@ def eliminar_factura(request, id):
 
 
 ######################################### Proveedor#########################################
-@login_required
-@cargo_requerido(['admin', 'Gerente'])
-def crear_proveedor(request: HttpRequest) -> HttpResponse:
-    if request.method == "POST":
-        form = ProveedorForm(data=request.POST, files=request.FILES)
-        if form.is_valid():
-            form.save()
-            return redirect("consultar_proveedor")
-    else:
-        form = ProveedorForm()
-    context = {"form_Proveedor": form, "edit_mode": False}
-    return render(request, "administrativo/proveedor/crear_proveedor.html", context)
-@login_required
-@cargo_requerido(['admin', 'Gerente'])
-def consultar_proveedor(request: HttpRequest) -> HttpResponse:
-    if request.method == "POST":
-        if 'buscar_proveedor' in request.POST:
-            buscarProveedorForm = BuscarProveedorForm(request.POST)
-            if buscarProveedorForm.is_valid():
-                nombre = buscarProveedorForm.cleaned_data.get('nombre', '')
-                ruc = buscarProveedorForm.cleaned_data.get('ruc', '')
-                fecha = buscarProveedorForm.cleaned_data.get('fecha', None)
 
-                proveedores = Proveedor.objects.filter(
-                    Q(nombre__icontains=nombre) if nombre else Q(),
-                    Q(ruc__icontains=ruc) if ruc else Q(),
-                    Q(fecha_creacion__lte=fecha) if fecha else Q(),
-                )
-                context = {'buscador_Proveedor': buscarProveedorForm, 'proveedores': proveedores}
-                return render(request, "administrativo/proveedor/consultar_proveedor.html", context)
-
-        elif 'exportar_proveedor' in request.POST:
-            return exportar_pdf_proveedor(request)
-        
-    buscarProveedorForm = BuscarProveedorForm()
-    proveedores = None
-    return render(request, "administrativo/proveedor/consultar_proveedor.html", {'buscador_Proveedor': buscarProveedorForm, 'proveedores': proveedores})
-
-
-@login_required
-@cargo_requerido(['admin', 'Gerente'])        
-def exportar_pdf_proveedor(request: HttpRequest) -> HttpResponse:
-        response = HttpResponse(content_type="application/pdf")
-        response["Content-Disposition"] = 'attachment; filename="consultar_proveedor.pdf"'
-        buffer = io.BytesIO()
-        doc = SimpleDocTemplate(
-            buffer,
-            rightMargin=inch / 4,
-            leftMargin=inch / 4,
-            topMargin=inch / 2,
-            bottomMargin=inch / 4,
-            pagesize=A4
-        )
-        styles = getSampleStyleSheet()
-        styles.add(ParagraphStyle(name='centered', alignment=TA_CENTER))
-        styles.add(ParagraphStyle(name='RightAlign', alignment=TA_RIGHT))
-
-        lista_proveedor = []
-        header = Paragraph("Listado de Proveedores", styles['Heading1'])
-        lista_proveedor.append(header)
-
-        buscarProveedorForm = BuscarProveedorForm(request.POST)
-        if buscarProveedorForm.is_valid():
-            nombre = buscarProveedorForm.cleaned_data.get('nombre', '')
-            ruc = buscarProveedorForm.cleaned_data.get('ruc', '')
-            fecha = buscarProveedorForm.cleaned_data.get('fecha', None)
-
-            proveedores = Proveedor.objects.filter(
-                Q(nombre__icontains=nombre) if nombre else Q(),
-                Q(ruc__icontains=ruc) if ruc else Q(),
-                Q(fecha_creacion__lte=fecha) if fecha else Q(),
-            )
-            headings = ('Id', 'Nombre', 'RUC', 'Teléfono', 'Correo')
-            allproveedores = [(p.pk, p.nombre, p.ruc, p.telefono, p.correo) for p in proveedores]
-
-            t = Table([headings] + allproveedores)
-            t.setStyle(TableStyle([
-                ('GRID', (0, 0), (-1, -1), 1, colors.springgreen),
-                ('LINEBELOW', (0, 0), (-1, 0), 2, colors.springgreen),
-                ('BACKGROUND', (0, 0), (-1, 0), colors.springgreen),
-            ]))
-            lista_proveedor.append(t)
-
-        doc.build(lista_proveedor)
-        response.write(buffer.getvalue())
-        buffer.close()
-        return response
-
-   
-@login_required
-@cargo_requerido(['admin', 'Gerente'])
-def modificar_proveedor(request: HttpRequest, id: int) -> HttpResponse:
-    proveedor = get_object_or_404(Proveedor, id=id)
-    if request.method == "POST":
-        form = ProveedorForm(data=request.POST, files=request.FILES, instance=proveedor)
-        if form.is_valid():
-            form.save()
-            return redirect("consultar_proveedor")
-    else:
-        form = ProveedorForm(instance=proveedor)
-    context = {"form": form, "proveedor": proveedor, "edit_mode": True}
-    return render(request, "administrativo/proveedor/modificar_proveedor.html", context)
-
-@login_required
-@cargo_requerido(['admin', 'Gerente'])
-def eliminar_proveedor(request: HttpRequest, id: int) -> HttpResponse:
-    proveedor = get_object_or_404(Proveedor, id=id)
-    if request.method == "POST":
-        proveedor.delete()
-        return redirect("consultar_proveedor")
-    return render(request, "administrativo/proveedor/eliminar_proveedor.html", {"proveedor": proveedor})
 
 
 
@@ -1449,3 +1463,156 @@ def eliminar_proveedor(request: HttpRequest, id: int) -> HttpResponse:
 ##############################################################################################################
 #############################################################################################################
 ###############################################################################################################
+########################################## Pagos #########################################
+
+# import requests
+# from django.conf import settings
+# from django.http import JsonResponse
+
+# def iniciar_pago_payphone(request):
+#     url = "https://pay.payphonetodoesposible.com/api/Sale"
+#     headers = {
+#         "Authorization": f"Bearer {settings.PAYPHONE_API_KEY}",
+#         "Content-Type": "application/json"
+#     }
+
+#     data = {
+#         "amount": 1500,  # Valor en centavos: 15.00 USD
+#         "amountWithoutTax": 1300,
+#         "tax": 200,
+#         "clientTransactionId": "TRX123ABC",
+#         "phoneNumber": "0999999999",  # Obligatorio para PayPhone
+#         "email": "cliente@example.com",
+#         "storeId": settings.PAYPHONE_STORE_ID,
+#         "paymentId": 0  # 0: pago con tarjeta / 1: pago con saldo PayPhone
+#     }
+
+#     response = requests.post(url, headers=headers, json=data)
+#     return JsonResponse(response.json())
+
+
+
+# @login_required
+# @cargo_requerido(['admin', 'Gerente', 'supervisor', 'cajero'])
+# def crear_factura(request: HttpRequest) -> HttpResponse:
+#     if request.method == 'POST':
+#         cliente_id = request.POST.get('cliente_id')
+#         empleado_id = request.POST.get('empleado_id')
+#         sucursal_id = request.POST.get('sucursal_id')
+#         tipo_pago = request.POST.get('tipo_pago')
+#         comentario = request.POST.get('comentario', '')
+#         productos_json = request.POST.get('productos_json')
+#         transaccion_id = request.POST.get('transaccion_id')  # <-- se recibe desde el frontend
+
+#         if not cliente_id or not productos_json:
+#             return HttpResponse("Datos incompletos.", status=400)
+
+#         try:
+#             productos = json.loads(productos_json)
+#         except json.JSONDecodeError:
+#             return HttpResponse("Error en el formato de productos.", status=400)
+
+#         try:
+#             with transaction.atomic():
+#                 factura = Factura.objects.create(
+#                     cliente_id=cliente_id,
+#                     empleado_id=empleado_id if empleado_id else None,
+#                     sucursal_id=sucursal_id,
+#                     tipo_pago=tipo_pago,
+#                     fecha_emision=timezone.now(),
+#                     comentario=comentario,
+#                     creacion_usuario=request.user.username,
+#                     modificacion_usuario=request.user.username,
+#                 )
+
+#                 ahora = timezone.now()
+
+#                 for p in productos:
+#                     producto = Producto.objects.get(id=p['id'])
+#                     cantidad = int(p['cantidad'])
+#                     iva = Iva.objects.get(id=p['iva_id']) if p.get('iva_id') else None
+
+#                     if producto.stock < cantidad:
+#                         return HttpResponse(f"Stock insuficiente para {producto.nombre}", status=400)
+
+#                     descuento_total = Decimal(p.get('descuento_pct', 0))
+#                     precio_base = producto.precio
+#                     precio_desc = precio_base
+
+#                     if descuento_total > 0:
+#                         descuento_decimal = descuento_total / Decimal('100')
+#                         precio_desc = (precio_base * (Decimal('1') - descuento_decimal)).quantize(Decimal('0.01'))
+
+#                     producto.stock -= cantidad
+#                     producto.save()
+
+#                     Factura_Detalle.objects.create(
+#                         factura=factura,
+#                         producto=producto,
+#                         cantidad_producto=cantidad,
+#                         precio_factura=precio_desc,
+#                         descuento_total=descuento_total,
+#                         iva=iva,
+#                         creacion_usuario=request.user.username,
+#                         modificacion_usuario=request.user.username
+#                     )
+
+#                 totales = factura.get_totales
+#                 factura.comentario = (factura.comentario or "") + f" | Subtotal: {totales['subtotal']}, IVA: {totales['iva_total']}, Total: {totales['total']}"
+#                 factura.save()
+
+#                 # --- REGISTRAR PAGO TARJETA ---
+#                 if tipo_pago == 'tarjeta':
+#                     if not transaccion_id:
+#                         return HttpResponse("No se recibió transacción del pago con tarjeta.", status=400)
+
+#                     Pago.objects.create(
+#                         factura=factura,
+#                         metodo='tarjeta',
+#                         estado='pagado',
+#                         transaccion_id=transaccion_id,
+#                         monto=totales['total']
+#                     )
+
+#         except Exception as e:
+#             return HttpResponse(f"Error al procesar la factura: {str(e)}", status=500)
+
+#         pdf_factura = reverse('exportar_pdf_factura', kwargs={'factura_id': factura.id})
+#         return JsonResponse({'success': True, 'pdf_factura': pdf_factura})
+
+#     # GET → preparar datos
+#     ahora = timezone.now()
+#     productos_queryset = Producto.objects.all()
+#     productos = []
+
+#     for p in productos_queryset:
+#         descuento_activo = Descuento.objects.filter(
+#             producto=p,
+#             estado=1,
+#             fecha_inicio__lte=ahora,
+#             fecha_final__gte=ahora
+#         ).order_by('-fecha_inicio').first()
+
+#         productos.append({
+#             'id': p.pk,
+#             'nombre': p.nombre,
+#             'numero_serie': p.numero_serie,
+#             'precio': float(p.precio),
+#             'stock': p.stock,
+#             'descuento': float(descuento_activo.descuento) if descuento_activo else 0
+#         })
+
+#     clientes = list(Cliente.objects.values('id', 'nombre', 'cedula'))
+#     empleados = list(Empleado.objects.values('id', 'nombre', 'cargo'))
+#     sucursales = list(Sucursal.objects.values('id', 'nombre', 'direccion'))
+#     ivas = Iva.objects.all()
+
+#     context = {
+#         'productos_json': json.dumps(productos, ensure_ascii=False),
+#         'clientes_json': json.dumps(clientes, ensure_ascii=False),
+#         'empleados_json': json.dumps(empleados, ensure_ascii=False),
+#         'sucursales_json': json.dumps(sucursales, ensure_ascii=False),
+#         'ivas': ivas,
+#     }
+
+#     return render(request, 'facturacion_cliente/factura/crear_factura.html', context)

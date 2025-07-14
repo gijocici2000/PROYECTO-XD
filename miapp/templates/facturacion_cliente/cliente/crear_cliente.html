@@ -2,27 +2,59 @@
 
 {% block main %}
 <div class="container mt-4 text-light">
+  <h2 class="text-center mb-4 text-primary"><b>Agregar Cliente</b></h2>
 
-    <h2 class="text-center mb-4 text-primary"><b>Agregar Cliente</b></h2>
+  <form method="post" action="{% url 'crear_cliente' %}" class="w-50 mx-auto p-4 rounded"
+        style="background-color: #308a9e; border: 1px solid #333;">
+    {% csrf_token %}
 
-    <form method="post" action="{% url 'crear_cliente' %}" class="w-50 mx-auto p-4 rounded" style="background-color: #308a9e; border: 1px solid #333;">
-        
-        {% csrf_token %}
+    <div class="mb-3">
+      {{ form_Cliente.nombre.label_tag }}
+      {{ form_Cliente.nombre }}
+    </div>
 
-        <div class="mb-3">
-            {{ form_Cliente }}
-        </div>
+    <div class="mb-3">
+      {{ form_Cliente.apellido.label_tag }}
+      {{ form_Cliente.apellido }}
 
-        <div class="d-flex justify-content-between mt-4">
-            <button type="submit" class="btn btn-success">
-                <i class="fas fa-save"></i> Guardar Cliente
-            </button>
-            
-            <a href="{% url 'consultar_cliente' %}" class="btn btn-outline-danger">
-                <i class="fas fa-times"></i> Cancelar
-            </a>
-        </div>
-    </form>
+    <div class="mb-3">
+      {{ form_Cliente.cedula.label_tag }}
+      {{ form_Cliente.cedula }}
+    </div>
 
+    <div class="mb-3">
+      {{ form_Cliente.correo.label_tag }}
+      {{ form_Cliente.correo }}
+    </div>
+
+    <div class="mb-3">
+      {{ form_Cliente.telefono.label_tag }}
+      {{ form_Cliente.telefono }}
+    </div>
+
+    <div class="mb-3">
+      {{ form_Cliente.direccion.label_tag }}
+      {{ form_Cliente.direccion }}
+    </div>
+
+    <div class="mb-3">
+      {{ form_Cliente.creacion_usuario.label_tag }}
+      {{ form_Cliente.creacion_usuario }}
+    </div>
+
+    <div class="mb-3">
+      {{ form_Cliente.modificacion_usuario.label_tag }}
+      {{ form_Cliente.modificacion_usuario }}
+    </div>
+
+    <div class="mb-3">
+      {{ form_Cliente.estado.label_tag }}
+      {{ form_Cliente.estado }}
+    </div>
+
+     <div class="text-center">
+      <button type="submit" class="btn btn-success px-5">Guardar Cliente</button>
+    </div>
+  </form>
 </div>
 {% endblock %}

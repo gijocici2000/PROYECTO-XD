@@ -1,4 +1,5 @@
 {% load static %}
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -119,69 +120,78 @@
                     </li>
                 </ul>
 
-                <!-- Login/Register links -->
-                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-                    {% if user.is_authenticated %}
-                        <li class="nav-item">
-                            
-                            <span class="nav-link disabled">👋 Hola, {{ user.username }}</span>
-                        </li>
+               <!-- Login/Register links -->
+<ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+    {% if user.is_authenticated %}
+        <li class="nav-item">
+            <span class="nav-link disabled">👋 Hola, {{ user.username }}</span>
+        </li>
 
-                        {% if user.userprofile.cargo.nombre == "admin" or user.userprofile.cargo.nombre == "gerente" %}
-                            <li class="nav-item">
-                                <a class="nav-link btn btn-outline-light mx-2" href="{% url 'register' %}">
-                                    ➕ Registrar usuario
-                                </a>
-                            </li>
-                        {% endif %}
+        {# Mostrar enlace para registrar usuarios solo si el usuario es admin o gerente #}
+        {% if user.empleado.cargo.nombre|lower in cargos_permitidos %}
+            <li class="nav-item">
+                <a class="nav-link btn btn-outline-success" href="{% url 'register' %}">
+                    ➕ Registrar usuario
+                </a>
+            </li>
+        {% endif %}
 
-                        <li class="nav-item">
-                            <a class="nav-link btn btn-outline-danger" href="{% url 'logout' %}">
-                                🔒 Cerrar sesión
-                            </a>
-                        </li>
-                    {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link btn btn-outline-primary" href="{% url 'login' %}">
-                                🔑 Iniciar sesión
-                            </a>
-                        </li>
-                    {% endif %}
-                </ul>
+        <li class="nav-item">
+            <a class="nav-link btn btn-outline-danger" href="{% url 'logout' %}">
+                🔒 Cerrar sesión
+            </a>
+        </li>
+    {% else %}
+        <li class="nav-item">
+            <a class="nav-link btn btn-outline-primary" href="{% url 'login' %}">
+                🔑 Iniciar sesión
+            </a>
+        </li>
+    {% endif %}
+</ul>
+                                                                   
             </div>
         </div>
     </nav>
-    {% endblock %}
+{%endblock %}
 
     <!-- CONTENIDO PRINCIPAL -->
     {% block main %}
+    {% endblock %}
+
+    <!-- FOOTER -->
+    <footer class="bg-dark text-white text-center py-3">
+        <p class="mb-0">© 2023 Sistema de Ventas. Todos los derechos reservados.</p>
+    </footer>
+
+   <!-- CONTENIDO PRINCIPAL -->
     <h1 class="text-center my-4">Bienvenido al sistema web</h1>
     <div class="container">
         <div class="row text-center">
             <div class="col mio-div-grid">
-                Hotwheels
+                Libros
                 <img src="{% static 'img/libro.png' %}" alt="libros" width="100" />
                 <div class="description-grid">
-                    <p>125</p>
+                    <p>{{ total_productos }}</p>
                 </div>
             </div>
             <div class="col mio-div-grid">
                 Clientes
                 <img src="{% static 'img/cliente.png' %}" alt="Clientes" width="100" />
                 <div class="description-grid">
-                    <p>125</p>
+                    <p>{{ total_clientes }}</p>
                 </div>
             </div>
             <div class="col mio-div-grid">
                 Empleados
                 <img src="{% static 'img/empleado.png' %}" alt="Empleados" width="100" />
                 <div class="description-grid">
-                    <p>125</p>
+                    <p>{{ total_empleados }}</p>
                 </div>
             </div>
         </div>
     </div>
-    {% endblock %}
+
 
     <!-- SCRIPTS GENERALES -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>

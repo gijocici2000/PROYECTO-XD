@@ -13,7 +13,7 @@ from django.contrib.auth.models import User
 
 class Sucursal(models.Model):
     nombre = models.CharField(max_length=30)
-    ruc= models.CharField(max_length=13, default="")
+    ruc= models.CharField(max_length=13, default="",)
     local = models.CharField(max_length=50)
     telefono = models.CharField(max_length=12)
     correo= models.EmailField(max_length=40, default="@")
@@ -40,7 +40,7 @@ class Sucursal(models.Model):
 
 class Cargo(models.Model):
     nombre = models.CharField(max_length=50)
-    Codigo_Cargo = models.CharField(max_length=50)
+    Codigo_Cargo = models.CharField(max_length=50, unique=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True , )
     fecha_modificacion = models.DateTimeField(auto_now=True , )
     creacion_usuario = models.CharField(max_length=50)
@@ -59,10 +59,10 @@ class Cargo(models.Model):
 class Empleado(models.Model):
     nombre = models.CharField(max_length=20)
     apellido = models.CharField(max_length=20)
-    cedula = models.CharField(max_length=12)
+    cedula = models.CharField(max_length=12, unique=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
     cargo = models.ForeignKey(Cargo, on_delete=models.PROTECT) 
-    correo = models.EmailField(max_length=40, default="@") 
+    correo = models.EmailField(max_length=40, default="@" ,unique=True ) 
     telefono = models.CharField(max_length=12) 
     fecha_creacion = models.DateTimeField(auto_now_add=True , )
     fecha_modificacion = models.DateTimeField(auto_now=True , )
@@ -88,8 +88,8 @@ class Empleado(models.Model):
 class Cliente(models.Model):
     nombre = models.CharField(max_length=20)
     apellido = models.CharField(max_length=20)
-    cedula = models.CharField(max_length=12)
-    correo = models.EmailField(max_length=40, default="@")
+    cedula = models.CharField(max_length=12, unique=True)
+    correo = models.EmailField(max_length=40, default="@", unique=True)  
     telefono = models.CharField(max_length=12, blank=True, null=True)
     direccion = models.CharField(max_length=200, blank=True, null=True)
 
@@ -112,7 +112,7 @@ class Proveedor(models.Model):
     nombre = models.CharField(max_length=20)
     marca = models.CharField(max_length=20)
     producto = models.CharField(max_length=30)
-    ruc= models.CharField(max_length=13, default="")
+    ruc= models.CharField(max_length=13, default="",)
     telefono = models.CharField(max_length=12)
     correo = models.EmailField(max_length=40, default="@")
     direccion = models.CharField(max_length=200, blank=True, null=True)
@@ -129,8 +129,17 @@ class Proveedor(models.Model):
         verbose_name_plural = "proveedores"
 
     def __str__(self):
-        return self.nombre
+        return self.nombre\
+        
 
+# ---------------------------
+# BODEGA
+class Bodega(models.Model):
+    nombre = models.CharField(max_length=100)
+    direccion = models.CharField(max_length=200, blank=True)
+    
+    def __str__(self):
+        return self.nombre
 
 # ---------------------------
 # PRODUCTOS Y DESCUENTOS
@@ -138,13 +147,15 @@ class Proveedor(models.Model):
 
 class Producto(models.Model):
     numero_serie = models.CharField(max_length=100, unique=True,)
+    lote = models.CharField(max_length=50)  # Nuevo campo
+    bodega = models.ForeignKey(Bodega, on_delete=models.CASCADE, null=True, blank=True)
     nombre = models.CharField(max_length=100)
     modelo = models.CharField(max_length=100)
     color = models.CharField(max_length=50)
     categoria = models.CharField(max_length=100)
-    
     precio = models.DecimalField(max_digits=10, decimal_places=2, default= Decimal('0.00'))  # Más seguro que Float
-    stock = models.PositiveIntegerField()
+    stock = models.PositiveIntegerField( ) 
+    
     
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_modificacion = models.DateTimeField(auto_now=True)
@@ -194,6 +205,9 @@ class HistorialProducto(models.Model):
 
     def __str__(self):
         return f"{self.producto.nombre} ({self.tipo}) - {self.fecha.strftime('%Y-%m-%d %H:%M')}"
+
+# ---------------------------
+# DESCUENTOS
        
 
 class Descuento(models.Model):
@@ -282,7 +296,7 @@ class Cotizacion_Detalle(models.Model):
 # ---------------------------
 
 class Factura(models.Model):
-    factura_codigo = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
     numero_factura = models.CharField(max_length=20, unique=True, blank=True, null=True)
     sucursal = models.ForeignKey(Sucursal, on_delete=models.RESTRICT)
     empleado = models.ForeignKey(Empleado, on_delete=models.RESTRICT, blank=True, null=True)
@@ -308,11 +322,11 @@ class Factura(models.Model):
         ordering = ["-fecha_creacion"]
   
     def __str__(self):
-        return f"Factura {self.numero_factura or self.factura_codigo} - {self.cliente}"
+        return f"Factura {self.numero_factura or self.id} - {self.cliente}"
 
     def save(self, *args, **kwargs):
         if not self.numero_factura:
-            max_id = Factura.objects.aggregate(max_id=Max('factura_codigo'))['max_id'] or 0
+            max_id = Factura.objects.aggregate(max_id=Max('id'))['max_id'] or 0
             siguiente = max_id + 1
             self.numero_factura = f"F-{timezone.now().year}-{siguiente:05d}"
         super().save(*args, **kwargs)
@@ -375,3 +389,25 @@ class Factura_Detalle(models.Model):
         self.subtotal = self.subtotal_calculado
         self.total_factura_valor = self.total_calculado
         super().save(*args, **kwargs)
+
+
+
+
+# ---------------------------pagos
+# class Pago(models.Model):
+#     factura = models.OneToOneField('Factura', on_delete=models.CASCADE)
+#     metodo = models.CharField(max_length=50, choices=[
+#         ('efectivo', 'Efectivo'),
+#         ('tarjeta', 'Tarjeta'),
+#     ])
+#     estado = models.CharField(max_length=20, choices=[
+#         ('pendiente', 'Pendiente'),
+#         ('pagado', 'Pagado'),
+#         ('fallido', 'Fallido'),
+#     ], default='pendiente')
+#     transaccion_id = models.CharField(max_length=100, blank=True, null=True)
+#     monto = models.DecimalField(max_digits=10, decimal_places=2)
+#     fecha_pago = models.DateTimeField(auto_now_add=True)
+
+#     def __str__(self):
+#         return f"{self.metodo} - {self.estado} - ${self.monto}"

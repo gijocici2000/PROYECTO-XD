@@ -2,7 +2,7 @@ from django import forms
 from .models import *
 from django.forms import modelformset_factory
 from django.forms import inlineformset_factory
-
+from django.core.exceptions import ValidationError
 from django.contrib.auth.forms import UserCreationForm 
 
 from django.contrib.auth.models import User
@@ -52,31 +52,26 @@ class ClienteForm(forms.ModelForm):
 
 
 class ProductoForm(forms.ModelForm):
-    cantidad_ingresar = forms.IntegerField(
-        min_value=1,
-        label="Cantidad a ingresar:",
-        error_messages={
-            'required': "Este campo es obligatorio.",
-            'min_value': "Debe ser al menos 1."
-        },
-        widget=forms.NumberInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingrese la cantidad a agregar al stock',
-            'min': '1'
-        })
-    )
-
     class Meta:
         model = Producto
         fields = [
-            'numero_serie', 'nombre', 'modelo', 'color',
-            'categoria', 'precio'
+            'numero_serie', 'lote', 'bodega', 'nombre', 'modelo', 'color',
+            'categoria', 'precio', 'stock'  # stock agregado aquí
         ]
         widgets = {
             'numero_serie': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Número de serie',
                 'maxlength': '100'
+            }),
+            'lote': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Lote del producto',
+                'maxlength': '50'
+            }),
+            'bodega': forms.Select(attrs={
+                'class': 'form-select',
+                'placeholder': 'Seleccione una bodega'
             }),
             'nombre': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -104,14 +99,22 @@ class ProductoForm(forms.ModelForm):
                 'min': '0',
                 'placeholder': 'Precio en dólares'
             }),
+            'stock': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 0,
+                'placeholder': 'Stock disponible'
+            }),
         }
         labels = {
             'numero_serie': 'Número de Serie:',
+            'lote': 'Lote:',
+            'bodega': 'Bodega:',
             'nombre': 'Nombre:',
             'modelo': 'Modelo:',
             'color': 'Color:',
             'categoria': 'Categoría:',
             'precio': 'Precio Unitario ($):',
+            'stock': 'Stock:',
         }
 
     def clean_precio(self):
@@ -119,12 +122,6 @@ class ProductoForm(forms.ModelForm):
         if precio is not None and precio < 0:
             raise forms.ValidationError("El precio no puede ser negativo.")
         return precio
-
-    def clean_cantidad_ingresar(self):
-        cantidad = self.cleaned_data.get('cantidad_ingresar')
-        if cantidad is None or cantidad <= 0:
-            raise forms.ValidationError("La cantidad a ingresar debe ser mayor que cero.")
-        return cantidad
 #########################Factura y Factura Detalle#########################
 
 
@@ -362,7 +359,7 @@ class BuscarFacturaForm(forms.Form):
     )
 
 class BuscarFacturaDetalleForm(forms.Form):
-    factura_codigo = forms.CharField(max_length=50, required=False)
+    id = forms.CharField(max_length=50, required=False)
     producto = forms.ModelChoiceField(
         queryset=Producto.objects.all(),
         required=False,
@@ -428,15 +425,73 @@ class BuscarCotizacionDetalleForm(forms.Form):
         )
     )
 
-class CustomUserCreationForm(UserCreationForm):
-    email = forms.EmailField(required=True, label='Correo electrónico')
+class RegistroUsuarioForm(UserCreationForm):
+    nombre = forms.CharField(max_length=50, label="Nombre")
+    apellido = forms.CharField(max_length=50, label="Apellido")
+    cedula = forms.CharField(max_length=12, label="Cédula")
+    correo = forms.EmailField(label="Correo electrónico")
+    telefono = forms.CharField(max_length=15, label="Teléfono")
+    cargo = forms.ModelChoiceField(queryset=Cargo.objects.filter(estado=1), label="Cargo")
 
     class Meta:
         model = User
-        fields = ['username' , 'email', 'password1', 'password2']
+        fields = ['username', 'password1', 'password2', 'nombre', 'apellido', 'cedula', 'correo', 'telefono', 'cargo']
 
-    def clean_email(self):
-        email = self.cleaned_data.get('email')
-        if User.objects.filter(email=email).exists():
-            raise forms.ValidationError('Este correo ya está registrado.')
-        return email
+    def save(self, commit=True):
+        user = super().save(commit)
+        if commit:
+            Empleado.objects.create(
+                user=user,
+                nombre=self.cleaned_data['nombre'],
+                apellido=self.cleaned_data['apellido'],
+                cedula=self.cleaned_data['cedula'],
+                correo=self.cleaned_data['correo'],
+                telefono=self.cleaned_data['telefono'],
+                cargo=self.cleaned_data['cargo'],
+                creacion_usuario=user.username,
+                modificacion_usuario=user.username,
+            )
+        return user
+
+
+
+class CustomUserCreationForm(UserCreationForm):
+    nombre = forms.CharField(max_length=20, label="Nombre")
+    apellido = forms.CharField(max_length=20, label="Apellido")
+    cedula = forms.CharField(max_length=12)
+    correo = forms.EmailField()
+    telefono = forms.CharField(max_length=12)
+    cargo = forms.ModelChoiceField(queryset=Cargo.objects.all(), label="Cargo")
+
+    class Meta:
+        model = User
+        fields = ['username', 'password1', 'password2',
+                  'nombre', 'apellido', 'cedula', 'correo', 'telefono', 'cargo']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.update({'class': 'form-control'})
+
+    def clean_correo(self):
+        correo = self.cleaned_data['correo']
+        if Empleado.objects.filter(correo=correo).exists():
+            raise ValidationError("Ya existe un empleado con este correo electrónico.")
+        return correo
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        if commit:
+            user.save()
+            Empleado.objects.create(
+                user=user,
+                nombre=self.cleaned_data['nombre'],
+                apellido=self.cleaned_data['apellido'],
+                cedula=self.cleaned_data['cedula'],
+                correo=self.cleaned_data['correo'],
+                telefono=self.cleaned_data['telefono'],
+                cargo=self.cleaned_data['cargo'],
+                creacion_usuario=user.username,
+                modificacion_usuario=user.username
+            )
+        return user

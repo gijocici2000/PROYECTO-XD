@@ -92,7 +92,7 @@
       <textarea name="comentario" class="form-control" rows="2"></textarea>
     </div>
 
-    <input type="hidden" name="productos_json" id="productos_json">
+    <input type="hidden" name="productos_json" id="productos_json"required>
     <button type="submit" class="btn btn-primary w-100">Guardar Factura</button>
   </form>
 </div>
@@ -142,17 +142,17 @@ function configurarBuscador(inputId, resultadosId, datos, callback, campos) {
 
 // Buscadores
 configurarBuscador('buscador-cliente', 'resultados-cliente', clientes, c => {
-  document.getElementById('buscador-cliente').value = c.nombre;
+  document.getElementById('buscador-cliente').value = c.nombre, c.apellido, c.cedula;
   document.getElementById('cliente-id').value = c.id;
-}, ['nombre', 'cedula']);
+}, ['nombre','apellido', 'cedula']);
 
 configurarBuscador('buscador-empleado', 'resultados-empleado', empleados, e => {
-  document.getElementById('buscador-empleado').value = e.nombre;
+  document.getElementById('buscador-empleado').value = e.nombre, c.apellido, c.cargo;
   document.getElementById('empleado-id').value = e.id;
-}, ['nombre']);  // Aquí cambio a solo buscar por nombre
+}, ['nombre','apelido','codigo_id']);  // Aquí cambio a solo buscar por nombre
 
 configurarBuscador('buscador-sucursal', 'resultados-sucursal', sucursales, s => {
-  document.getElementById('buscador-sucursal').value = s.nombre;
+  document.getElementById('buscador-sucursal').value = s.nombre, s.direccion;
   document.getElementById('sucursal-id').value = s.id;
 }, ['nombre', 'direccion']);
 
@@ -252,8 +252,16 @@ document.addEventListener('click', e => {
 // Envío del formulario
 document.getElementById('facturaForm').addEventListener('submit', e => {
   e.preventDefault();
-  if (!document.getElementById('cliente-id').value || productosCotizacion.length === 0) {
-    alert("Debe seleccionar cliente y agregar al menos un producto.");
+   if (!document.getElementById('cliente-id').value) {
+    alert("Seleccione un cliente.");
+    return;
+  }
+  if (!document.getElementById('sucursal-id').value) {
+    alert("Seleccione una sucursal.");
+    return;
+  }
+  if (productosCotizacion.length === 0) {
+    alert("Agregue al menos un producto.");
     return;
   }
 
@@ -263,14 +271,17 @@ document.getElementById('facturaForm').addEventListener('submit', e => {
     body: formData,
     headers: {'X-CSRFToken': formData.get('csrfmiddlewaretoken')}
   })
-  .then(r => {
-    if (r.redirected) {
-      window.location.href = r.url;
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      window.open(data.pdf_factura, "_blank");
+      window.location.href = "{% url 'consultar_factura' %}";
     } else {
-      return r.text().then(msg => alert(msg));
+      alert(data.error || "Error en el servidor.");
     }
   })
-  .catch(() => alert("Error al enviar la factura."));
+  .catch(() => alert("Error en la solicitud."));
 });
 </script>
 {% endblock %}
+
