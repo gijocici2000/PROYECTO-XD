@@ -181,7 +181,8 @@ def crear_cliente(request: HttpRequest) -> HttpResponse:
     context = {"form_Cliente": form, "edit_mode": False}
     return render(request, "facturacion_cliente/cliente/crear_cliente.html", context)
 
-
+@login_required
+@cargo_requerido(['admin', 'gerente','cajero','supervisor' ,])
 def consultar_cliente(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         if 'buscar_cliente' in request.POST:

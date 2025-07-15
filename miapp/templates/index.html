@@ -35,9 +35,10 @@
         }
         html,
         body {
-            height: auto !important;
-            min-height: 100%;
-            overflow-y: auto !important;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: auto;
         }
         #projector {
             position: fixed;
@@ -55,116 +56,106 @@
 <body class="cars">
     <canvas id="projector"></canvas>
 
-    <!-- NAVBAR -->
-    {% block navbar %}
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="#">
-                <img src="{% static 'img/libro.png' %}" alt="Logo" width="90" height="60" />
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-
-            <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item"><a class="nav-link" href="{% url 'index' %}">Inicio</a></li>
-
-                    <!-- Menús desplegables -->
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Cliente</a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'consultar_cliente' %}">Consultar Cliente</a></li>
-                            <li><a class="dropdown-item" href="{% url 'crear_cliente' %}">Crear Cliente</a></li>
-                        </ul>
-                    </li>
-
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Libro</a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'consultar_producto' %}">Consultar Libro</a></li>
-                            <li><a class="dropdown-item" href="{% url 'crear_producto' %}">Crear Libro</a></li>
-                        </ul>
-                    </li>
-
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Descuento</a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'consultar_descuento' %}">Consultar Descuento</a></li>
-                            <li><a class="dropdown-item" href="{% url 'crear_descuento' %}">Crear Descuento</a></li>
-                        </ul>
-                    </li>
-
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Proveedor</a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'consultar_proveedor' %}">Consultar Proveedor</a></li>
-                            <li><a class="dropdown-item" href="{% url 'crear_proveedor' %}">Crear Proveedor</a></li>
-                        </ul>
-                    </li>
-
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Cotización</a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'consultar_cotizacion' %}">Consultar Cotización</a></li>
-                            <li><a class="dropdown-item" href="{% url 'crear_cotizacion' %}">Crear Cotización</a></li>
-                        </ul>
-                    </li>
-
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Factura</a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'consultar_factura' %}">Consultar Factura</a></li>
-                            <li><a class="dropdown-item" href="{% url 'crear_factura' %}">Crear Factura</a></li>
-                        </ul>
-                    </li>
-                </ul>
-
-               <!-- Login/Register links -->
-<ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-    {% if user.is_authenticated %}
-        <li class="nav-item">
-            <span class="nav-link disabled">👋 Hola, {{ user.username }}</span>
-        </li>
-
-        {# Mostrar enlace para registrar usuarios solo si el usuario es admin o gerente #}
-        {% if user.empleado.cargo.nombre|lower in cargos_permitidos %}
-            <li class="nav-item">
-                <a class="nav-link btn btn-outline-success" href="{% url 'register' %}">
-                    ➕ Registrar usuario
+    <!-- NAVBAR (se oculta si está en la vista de login) -->
+    {% if request.resolver_match.url_name != 'login' %}
+        {% block navbar %}
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">
+                    <img src="{% static 'img/libro.png' %}" alt="Logo" width="90" height="60" />
                 </a>
-            </li>
-        {% endif %}
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
 
-        <li class="nav-item">
-            <a class="nav-link btn btn-outline-danger" href="{% url 'logout' %}">
-                🔒 Cerrar sesión
-            </a>
-        </li>
-    {% else %}
-        <li class="nav-item">
-            <a class="nav-link btn btn-outline-primary" href="{% url 'login' %}">
-                🔑 Iniciar sesión
-            </a>
-        </li>
-    {% endif %}
-</ul>
-                                                                   
+                <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item"><a class="nav-link" href="{% url 'index' %}">Inicio</a></li>
+
+                        <!-- Menús desplegables -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Cliente</a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'consultar_cliente' %}">Consultar Cliente</a></li>
+                                <li><a class="dropdown-item" href="{% url 'crear_cliente' %}">Crear Cliente</a></li>
+                            </ul>
+                        </li>
+
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Libro</a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'consultar_producto' %}">Consultar Libro</a></li>
+                                <li><a class="dropdown-item" href="{% url 'crear_producto' %}">Crear Libro</a></li>
+                            </ul>
+                        </li>
+
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Descuento</a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'consultar_descuento' %}">Consultar Descuento</a></li>
+                                <li><a class="dropdown-item" href="{% url 'crear_descuento' %}">Crear Descuento</a></li>
+                            </ul>
+                        </li>
+
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Proveedor</a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'consultar_proveedor' %}">Consultar Proveedor</a></li>
+                                <li><a class="dropdown-item" href="{% url 'crear_proveedor' %}">Crear Proveedor</a></li>
+                            </ul>
+                        </li>
+
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Cotización</a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'consultar_cotizacion' %}">Consultar Cotización</a></li>
+                                <li><a class="dropdown-item" href="{% url 'crear_cotizacion' %}">Crear Cotización</a></li>
+                            </ul>
+                        </li>
+
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Factura</a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'consultar_factura' %}">Consultar Factura</a></li>
+                                <li><a class="dropdown-item" href="{% url 'crear_factura' %}">Crear Factura</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+
+                    <!-- Login/Register links -->
+                    <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                        {% if user.is_authenticated %}
+                            <li class="nav-item">
+                                <span class="nav-link disabled">👋 Hola, {{ user.username }}</span>
+                            </li>
+                            {% if user.empleado.cargo.nombre|lower in cargos_permitidos %}
+                                <li class="nav-item">
+                                    <a class="nav-link btn btn-outline-success" href="{% url 'register' %}">
+                                        ➕ Registrar usuario
+                                    </a>
+                                </li>
+                            {% endif %}
+                            <li class="nav-item">
+                                <a class="nav-link btn btn-outline-danger" href="{% url 'logout' %}">
+                                    🔒 Cerrar sesión
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="nav-item">
+                                <a class="nav-link btn btn-outline-primary" href="{% url 'login' %}">
+                                    🔑 Iniciar sesión
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </div>
             </div>
-        </div>
-    </nav>
-{%endblock %}
+        </nav>
+        {% endblock %}
+    {% endif %}
 
     <!-- CONTENIDO PRINCIPAL -->
     {% block main %}
-    
-
-    <!-- FOOTER -->
-    <footer class="bg-dark text-white text-center py-3">
-        <p class="mb-0">© 2023 Sistema de Ventas. Todos los derechos reservados.</p>
-    </footer>
-
-   <!-- CONTENIDO PRINCIPAL -->
     <h1 class="text-center my-4">Bienvenido al sistema web</h1>
     <div class="container">
         <div class="row text-center">
@@ -191,8 +182,15 @@
             </div>
         </div>
     </div>
+    {% endblock %}
 
- {% endblock %}
+    <!-- FOOTER (se oculta también en login) -->
+    {% if request.resolver_match.url_name != 'login' %}
+        <footer class="bg-dark text-white text-center py-3">
+            <p class="mb-0">© 2025 Sistema de Ventas. Todos los derechos reservados.</p>
+        </footer>
+    {% endif %}
+
     <!-- SCRIPTS GENERALES -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -202,7 +200,6 @@
     <script src="{% static 'libs/TweenMax.min.js' %}"></script>
     <script src="{% static 'js/particulas.js' %}"></script>
 
-    <!-- BLOQUE PARA CÓDIGO EXTRA DE CADA PLANTILLA -->
     {% block scripts %}{% endblock %}
 </body>
 </html>

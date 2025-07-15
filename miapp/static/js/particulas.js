@@ -14,8 +14,9 @@ var ParticleEngine = (function() {
 
 		this.canvas_id = canvas_id;
 		this.stage = new createjs.Stage(canvas_id);
-		this.totalWidth = this.canvasWidth = document.getElementById(canvas_id).width = document.getElementById(canvas_id).offsetWidth;
-		this.totalHeight = this.canvasHeight = document.getElementById(canvas_id).height = document.getElementById(canvas_id).offsetHeight;
+		this.totalWidth = this.canvasWidth = document.getElementById(canvas_id).width = window.innerWidth;
+		this.totalHeight = this.canvasHeight = document.getElementById(canvas_id).height = window.innerHeight;
+
 		this.compositeStyle = "lighter";
 
 		this.particleSettings = [{id:"small", num:300, fromX:0, toX:this.totalWidth, ballwidth:3, alphamax:0.4, areaHeight:.5, color:"#F0F0F0", fill:false}, 
