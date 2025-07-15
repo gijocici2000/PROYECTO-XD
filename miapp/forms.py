@@ -52,6 +52,15 @@ class ClienteForm(forms.ModelForm):
 
 
 class ProductoForm(forms.ModelForm):
+    cantidad_ingresar = forms.IntegerField(
+        
+        required=False,
+        label='Cantidad a Ingresar:',
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Cantidad a agregar al stock',
+        })
+    )
     class Meta:
         model = Producto
         fields = [
