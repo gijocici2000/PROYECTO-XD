@@ -1,0 +1,108 @@
+{% extends 'index.html' %}
+
+{% block main %}
+<div class="container mt-4">
+  <h2>Crear Compra</h2>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="post" id="compraForm">
+    {% csrf_token %}
+
+    <!-- Datos generales -->
+    <div class="mb-3">
+      <label for="id_proveedor" class="form-label">Proveedor</label>
+      <select name="proveedor" id="id_proveedor" class="form-control" required>
+        <option value="">Seleccione un proveedor</option>
+        {% for proveedor in proveedores %}
+          <option value="{{ proveedor.id }}">{{ proveedor.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label for="fecha_compra" class="form-label">Fecha de Compra</label>
+      <input type="date" name="fecha_compra" id="fecha_compra" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+      <label for="numero_factura" class="form-label">Número de Factura</label>
+      <input type="text" name="numero_factura" id="numero_factura" class="form-control" />
+    </div>
+
+    <hr/>
+
+    <!-- Detalles productos -->
+    <h4>Productos</h4>
+    <table class="table" id="productosTable">
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th>Cantidad</th>
+          <th>Precio Unitario</th>
+          <th><button type="button" class="btn btn-success btn-sm" id="agregarProducto">+</button></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <select name="producto" class="form-select" required>
+              <option value="">Seleccione un producto</option>
+              {% for producto in productos %}
+                <option value="{{ producto.id }}">{{ producto.nombre }}</option>
+              {% endfor %}
+            </select>
+          </td>
+          <td><input type="number" name="cantidad" min="1" class="form-control" required /></td>
+          <td><input type="number" name="precio" min="0" step="0.01" class="form-control" required /></td>
+          <td><button type="button" class="btn btn-danger btn-sm eliminarFila">-</button></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <button type="submit" class="btn btn-primary">Guardar Compra</button>
+  </form>
+</div>
+
+<script>
+  // Script para agregar y eliminar filas dinámicamente
+  document.getElementById('agregarProducto').addEventListener('click', function() {
+    const tabla = document.getElementById('productosTable').getElementsByTagName('tbody')[0];
+    const fila = tabla.rows[0].cloneNode(true);
+
+    // Limpiar valores de inputs/select
+    fila.querySelectorAll('select, input').forEach(function(input) {
+      input.value = '';
+    });
+
+    tabla.appendChild(fila);
+  });
+
+  // Delegación para eliminar filas
+  document.getElementById('productosTable').addEventListener('click', function(e) {
+    if (e.target.classList.contains('eliminarFila')) {
+      const tbody = e.target.closest('tbody');
+      if (tbody.rows.length > 1) {
+        e.target.closest('tr').remove();
+      } else {
+        alert('Debe haber al menos un producto.');
+      }
+    }
+  });
+
+  // Para que los inputs se envíen como listas al backend, debemos modificar los names
+  // al enviar el formulario
+  document.getElementById('compraForm').addEventListener('submit', function() {
+    const filas = document.querySelectorAll('#productosTable tbody tr');
+    filas.forEach(function(fila, index) {
+      fila.querySelector('select[name="producto"]').setAttribute('name', 'producto');
+      fila.querySelector('input[name="cantidad"]').setAttribute('name', 'cantidad');
+      fila.querySelector('input[name="precio"]').setAttribute('name', 'precio');
+    });
+  });
+</script>
+{% endblock %}

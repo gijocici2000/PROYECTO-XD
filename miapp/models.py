@@ -108,30 +108,10 @@ class Cliente(models.Model):
         return f'{self.nombre} {self.cedula}'
 
 
-class Proveedor(models.Model):
-    nombre = models.CharField(max_length=20)
-    marca = models.CharField(max_length=20)
-    
-    producto = models.CharField(max_length=30)
-    ruc= models.CharField(max_length=13, default="",)
-    telefono = models.CharField(max_length=12)
-    correo = models.EmailField(max_length=40, default="@")
-    direccion = models.CharField(max_length=200, blank=True, null=True)
 
-    fecha_creacion = models.DateTimeField(auto_now_add=True , )
-    fecha_modificacion = models.DateTimeField(auto_now=True , )
-    creacion_usuario = models.CharField(max_length=50)
-    modificacion_usuario = models.CharField(max_length=50)
-    estado = models.IntegerField(default=1)
 
-    class Meta:
-        db_table = "proveedor"
-        verbose_name = "proveedor"
-        verbose_name_plural = "proveedores"
 
-    def __str__(self):
-        return self.nombre\
-        
+
 
 # ---------------------------
 # BODEGA
@@ -209,6 +189,68 @@ class HistorialProducto(models.Model):
 
     def __str__(self):
         return f"{self.producto.nombre} ({self.tipo}) - {self.fecha.strftime('%Y-%m-%d %H:%M')}"
+    
+class Proveedor(models.Model):
+    nombre = models.CharField(max_length=20)
+    marca = models.CharField(max_length=20)
+    ruc= models.CharField(max_length=13, default="",)
+    telefono = models.CharField(max_length=12)
+    correo = models.EmailField(max_length=40, default="@")
+    direccion = models.CharField(max_length=200, blank=True, null=True)
+
+    fecha_creacion = models.DateTimeField(auto_now_add=True , )
+    fecha_modificacion = models.DateTimeField(auto_now=True , )
+    creacion_usuario = models.CharField(max_length=50)
+    modificacion_usuario = models.CharField(max_length=50)
+    estado = models.IntegerField(default=1)
+
+    class Meta:
+        db_table = "proveedor"
+        verbose_name = "proveedor"
+        verbose_name_plural = "proveedores"
+
+    def __str__(self):
+        return self.nombre\
+        
+        
+class Compra(models.Model):
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE)
+    fecha_compra = models.DateField()
+    numero_factura = models.CharField(max_length=20)
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2)
+    iva = models.DecimalField(max_digits=10, decimal_places=2)
+    total = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"Compra {self.numero_factura} - {self.proveedor.nombre}"
+
+
+class DetalleCompra(models.Model):
+    compra = models.ForeignKey(Compra, on_delete=models.CASCADE, related_name="detalles")
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    cantidad = models.PositiveIntegerField()
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
+    iva_aplicado = models.DecimalField(max_digits=5, decimal_places=2)  # Ej: 12.00 para 12%
+
+    def subtotal(self):
+        return self.cantidad * self.precio_unitario
+
+    def valor_iva(self):
+        return self.subtotal() * (self.iva_aplicado / 100)
+
+    def total(self):
+        return self.subtotal() + self.valor_iva()
+
+    def __str__(self):
+        return f"{self.producto.nombre} x {self.cantidad}"
+
+
+
+
+
+
+
+
 
 # ---------------------------
 # DESCUENTOS

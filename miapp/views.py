@@ -183,33 +183,32 @@ def crear_cliente(request: HttpRequest) -> HttpResponse:
     return render(request, "facturacion_cliente/cliente/crear_cliente.html", context)
 
 @login_required
-@cargo_requerido(['admin', 'gerente','cajero','supervisor' ,])
+@cargo_requerido(['admin', 'gerente', 'cajero', 'supervisor'])
 def consultar_cliente(request: HttpRequest) -> HttpResponse:
-    if request.method == "POST":
-        if 'buscar_cliente' in request.POST:
-            buscarClienteForm = BuscarClienteForm(request.POST)
-            if buscarClienteForm.is_valid():
-                nombre = buscarClienteForm.cleaned_data.get('nombre', '')
-                apellido = buscarClienteForm.cleaned_data.get('apellido', '')
-                cedula = buscarClienteForm.cleaned_data.get('cedula', '')
-                fecha = buscarClienteForm.cleaned_data.get('fecha', None)
+    buscarClienteForm = BuscarClienteForm(request.POST or None)
 
-                clientes = Cliente.objects.filter(
+    # Mostrar todos los clientes por defecto
+    clientes = Cliente.objects.all()
+
+    if request.method == "POST":
+        if buscarClienteForm.is_valid():
+            nombre = buscarClienteForm.cleaned_data.get('nombre', '').strip()
+            apellido = buscarClienteForm.cleaned_data.get('apellido', '').strip()
+            cedula = buscarClienteForm.cleaned_data.get('cedula', '').strip()
+
+            # Aplicar filtros si existen
+            if nombre or apellido or cedula:
+                clientes = clientes.filter(
                     Q(nombre__icontains=nombre) if nombre else Q(),
                     Q(apellido__icontains=apellido) if apellido else Q(),
-                    Q(cedula__icontains=cedula) if cedula else Q(),
-                    Q(fecha_creacion__lte=fecha) if fecha else Q(),
+                    Q(cedula__icontains=cedula) if cedula else Q()
                 )
-                context = {'buscador_Cliente': buscarClienteForm, 'clientes': clientes}
-                return render(request, "facturacion_cliente/cliente/consultar_cliente.html", context)
 
-        
-            return redirect("consultar_cliente")
-
-    buscarClienteForm = BuscarClienteForm()
-    clientes = None
-    return render(request, "facturacion_cliente/cliente/consultar_cliente.html", {'buscador_Cliente': buscarClienteForm, 'clientes': clientes})
-
+    context = {
+        'buscador_Cliente': buscarClienteForm,
+        'clientes': clientes
+    }
+    return render(request, "facturacion_cliente/cliente/consultar_cliente.html", context)
 @login_required
 @cargo_requerido(['Admin', 'Gerente','cajero','supervisor'])
 def modificar_cliente(request: HttpRequest, id: int) -> HttpResponse:
@@ -330,7 +329,17 @@ def crear_producto(request):
 @login_required
 @cargo_requerido(['Admin', 'Gerente', 'cajero', 'supervisor'])
 def consultar_producto(request):
+
     productos = Producto.objects.all()
+    if request.method == 'POST':
+            filtro = request.POST.get('filtro', '').strip()
+            if filtro:
+                productos = productos.filter(
+                    Q(nombre__icontains=filtro) |
+                    Q(numero_serie__icontains=filtro)
+                )
+
+
     form = BuscarProductoForm(request.POST or None)
 
     if request.method == 'POST' and form.is_valid():
@@ -481,6 +490,13 @@ def filtrar_descuentos(nombre: str = '', porcentaje: Optional[float] = None):
         filtros &= Q(porcentaje__gte=porcentaje)
     return Descuento.objects.filter(filtros)
 
+
+
+
+
+
+
+
 ##########################-------------------DESCUEENTO-------------##########################################
 @login_required
 @cargo_requerido(['admin', 'Gerente','supervisor'])
@@ -499,15 +515,18 @@ def crear_descuento(request: HttpRequest) -> HttpResponse:
     })
 
 @login_required
-@cargo_requerido(['admin', 'Gerente','supervisor','cajero'])
+@cargo_requerido(['admin', 'Gerente', 'supervisor', 'cajero'])
 def consultar_descuento(request: HttpRequest) -> HttpResponse:
-    descuentos = None
     buscarDescuentoForm = BuscarDescuentoForm(request.POST or None)
-    
+
+    # Mostrar todos los descuentos por defecto (al cargar la página)
+    descuentos = Descuento.objects.all()
+
     if request.method == "POST":
         if 'buscar_descuento' in request.POST and buscarDescuentoForm.is_valid():
-            nombre = buscarDescuentoForm.cleaned_data.get('nombre', '')
+            nombre = buscarDescuentoForm.cleaned_data.get('nombre', '').strip()
             porcentaje = buscarDescuentoForm.cleaned_data.get('porcentaje', None)
+
             descuentos = filtrar_descuentos(nombre, porcentaje)
 
         elif 'exportar_descuento' in request.POST:
@@ -517,6 +536,7 @@ def consultar_descuento(request: HttpRequest) -> HttpResponse:
         'buscador_Descuento': buscarDescuentoForm,
         'descuentos': descuentos
     })
+
 
 @login_required
 @cargo_requerido(['admin', 'Gerente','supervisor'])
@@ -619,30 +639,36 @@ def crear_proveedor(request: HttpRequest) -> HttpResponse:
     return render(request, "administrativo/proveedor/crear_proveedor.html", context)
 
 @login_required
-@cargo_requerido(['admin', 'Gerente','supervisor','cajero'])
+@cargo_requerido(['admin', 'Gerente', 'supervisor', 'cajero'])
 def consultar_proveedor(request: HttpRequest) -> HttpResponse:
-    if request.method == "POST":
-        if 'buscar_proveedor' in request.POST:
-            buscarProveedorForm = BuscarProveedorForm(request.POST)
-            if buscarProveedorForm.is_valid():
-                nombre = buscarProveedorForm.cleaned_data.get('nombre', '')
-                ruc = buscarProveedorForm.cleaned_data.get('ruc', '')
-                fecha = buscarProveedorForm.cleaned_data.get('fecha', None)
+    buscarProveedorForm = BuscarProveedorForm(request.POST or None)
 
-                proveedores = Proveedor.objects.filter(
-                    Q(nombre__icontains=nombre) if nombre else Q(),
-                    Q(ruc__icontains=ruc) if ruc else Q(),
-                    Q(fecha_creacion__lte=fecha) if fecha else Q(),
-                )
-                context = {'buscador_Proveedor': buscarProveedorForm, 'proveedores': proveedores}
-                return render(request, "administrativo/proveedor/consultar_proveedor.html", context)
+    # Mostrar todos los proveedores por defecto
+    proveedores = Proveedor.objects.all()
+
+    if request.method == "POST":
+        if 'buscar_proveedor' in request.POST and buscarProveedorForm.is_valid():
+            nombre = buscarProveedorForm.cleaned_data.get('nombre', '').strip()
+            ruc = buscarProveedorForm.cleaned_data.get('ruc', '').strip()
+            fecha = buscarProveedorForm.cleaned_data.get('fecha', None)
+
+            filtros = Q()
+            if nombre:
+                filtros &= Q(nombre__icontains=nombre)
+            if ruc:
+                filtros &= Q(ruc__icontains=ruc)
+            if fecha:
+                filtros &= Q(fecha_creacion__lte=fecha)
+
+            proveedores = Proveedor.objects.filter(filtros)
 
         elif 'exportar_proveedor' in request.POST:
             return exportar_pdf_proveedor(request)
-        
-    buscarProveedorForm = BuscarProveedorForm()
-    proveedores = None
-    return render(request, "administrativo/proveedor/consultar_proveedor.html", {'buscador_Proveedor': buscarProveedorForm, 'proveedores': proveedores})
+
+    return render(request, "administrativo/proveedor/consultar_proveedor.html", {
+        'buscador_Proveedor': buscarProveedorForm,
+        'proveedores': proveedores
+    })
 
 
 @login_required

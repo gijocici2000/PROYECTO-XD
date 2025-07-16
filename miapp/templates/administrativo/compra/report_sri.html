@@ -1,0 +1,62 @@
+{% extends 'index.html' %}
+
+{% block main %}
+<div class="container mt-4">
+    <h2 class="text-center text-success mb-4"><b>Reporte Compras Mensual - SRI</b></h2>
+
+    <form method="get" class="row g-3 mb-4">
+        <div class="col-md-3">
+            <label for="mes">Mes:</label>
+            <select name="mes" class="form-select" id="mes">
+                {% for m in 1|make_list:12 %}
+                    <option value="{{ m }}" {% if mes|default:'' == m|stringformat:"s" %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label for="anio">Año:</label>
+            <input type="number" name="anio" class="form-control" id="anio" value="{{ anio|default:'' }}">
+        </div>
+        <div class="col-md-2 align-self-end">
+            <button type="submit" class="btn btn-primary">Filtrar</button>
+        </div>
+    </form>
+
+    <table class="table table-bordered text-center">
+        <thead class="table-light">
+            <tr>
+                <th>Proveedor</th>
+                <th>Fecha</th>
+                <th>Factura</th>
+                <th>Subtotal</th>
+                <th>IVA</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in compras %}
+            <tr>
+                <td>{{ c.proveedor.nombre }}</td>
+                <td>{{ c.fecha_compra|date:"d/m/Y" }}</td>
+                <td>{{ c.numero_factura }}</td>
+                <td>${{ c.subtotal|floatformat:2 }}</td>
+                <td>${{ c.iva|floatformat:2 }}</td>
+                <td>${{ c.total|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6">No hay compras para este mes y año.</td>
+            </tr>
+            {% endfor %}
+            {% if compras %}
+            <tr class="table-info fw-bold">
+                <td colspan="3">Totales</td>
+                <td>${{ resumen.subtotal|floatformat:2 }}</td>
+                <td>${{ resumen.iva|floatformat:2 }}</td>
+                <td>${{ resumen.total|floatformat:2 }}</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

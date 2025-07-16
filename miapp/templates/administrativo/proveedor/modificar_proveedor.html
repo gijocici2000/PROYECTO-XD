@@ -1,0 +1,31 @@
+{% extends 'index.html' %}
+
+{% block main %}
+<div class="container my-4 p-4 rounded" style="background-color: #308a9e; border: 1px solid #333;">
+    <h2 class="text-center text-light mb-4">Modificar Proveedor</h2>
+
+    {% if mensaje %}
+        <div class="alert alert-success">{{ mensaje }}</div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% for field in form_Proveedor.visible_fields %}
+            <div class="mb-3">
+                {{ field.label_tag }}
+                {{ field }}
+                {% if field.errors %}
+                    <div class="text-warning small">
+                        {{ field.errors.as_text|linebreaksbr }}
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+
+        <div class="d-flex justify-content-between mt-4">
+            <button type="submit" class="btn btn-success px-4">Guardar Cambios</button>
+            <a href="{% url 'consultar_proveedor' %}" class="btn btn-outline-light px-4">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

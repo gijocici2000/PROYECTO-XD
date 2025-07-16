@@ -1,0 +1,40 @@
+{% extends 'index.html' %}
+
+{% block main %}
+<h2>Detalle de Compra: {{ compra.numero_factura }}</h2>
+
+<p><strong>Proveedor:</strong> {{ compra.proveedor.nombre }}</p>
+<p><strong>Fecha:</strong> {{ compra.fecha_compra|date:"d/m/Y" }}</p>
+<p><strong>Subtotal:</strong> ${{ compra.subtotal|floatformat:2 }}</p>
+<p><strong>IVA:</strong> ${{ compra.iva|floatformat:2 }}</p>
+<p><strong>Total:</strong> ${{ compra.total|floatformat:2 }}</p>
+
+<h3>Productos</h3>
+<table border="1" cellpadding="5" cellspacing="0">
+    <thead>
+        <tr>
+            <th>Producto</th>
+            <th>Cantidad</th>
+            <th>Precio Unitario</th>
+            <th>IVA %</th>
+            <th>Total</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for detalle in detalles %}
+        <tr>
+            <td>{{ detalle.producto.nombre }}</td>
+            <td>{{ detalle.cantidad }}</td>
+            <td>${{ detalle.precio_unitario|floatformat:2 }}</td>
+            <td>{{ detalle.iva_aplicado }}%</td>
+            <td>${{ detalle.total|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5">No hay detalles.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<a href="{% url 'crear_compra' %}" class="btn btn-primary">Crear Nueva Compra</a> |
+<a href="{% url 'exportar_pdf_compra' compra.id %}" class="btn btn-secondary">Exportar PDF</a>
+{% endblock %}

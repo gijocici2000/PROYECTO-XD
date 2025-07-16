@@ -143,13 +143,35 @@ class ProductoForm(forms.ModelForm):
             self.fields['stock'].widget = forms.HiddenInput()
         else:
             # Producto existente → campo stock solo lectura
-            self.fields['stock'].widget.attrs['readonly'] = True
+            self.fields['stock'].widget.attrs['readonly'] = False
 
     def clean_precio(self):
         precio = self.cleaned_data.get('precio')
         if precio is not None and precio < 0:
             raise forms.ValidationError("El precio no puede ser negativo.")
         return precio
+
+
+class CompraForm(forms.ModelForm):
+    class Meta:
+        model = Compra
+        fields = ['proveedor', 'fecha_compra', 'numero_factura']
+        widgets = {
+            'fecha_compra': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+        }
+
+class DetalleCompraForm(forms.ModelForm):
+    class Meta:
+        model = DetalleCompra
+        fields = ['producto', 'cantidad', 'precio_unitario', 'iva_aplicado']
+        widgets = {
+            'iva_aplicado': forms.NumberInput(attrs={'placeholder': 'Ej: 12 para 12%'}),
+        }
+
+
+
+
+
 
 #########################Factura y Factura Detalle#########################
 
