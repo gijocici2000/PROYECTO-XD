@@ -29,8 +29,9 @@ from django.utils.safestring import mark_safe
 from .models import *
 from .forms import *
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-
-
+from openpyxl import Workbook
+from openpyxl.drawing.image import Image as ExcelImage
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 #################################login y registro de usuarios##########################################
 
 
@@ -239,9 +240,9 @@ def eliminar_cliente(request: HttpRequest, id: int) -> HttpResponse:
 def crear_producto(request):
     mensaje = ""
     stock_actual = None
-    form = ProductoForm()
+    mostrar_stock = False  # por defecto oculto
 
-    # AJAX para autocompletar producto por número de serie
+    # Manejo AJAX para autocompletar por número de serie
     if request.method == 'GET' and request.headers.get('x-requested-with') == 'XMLHttpRequest':
         numero_serie = request.GET.get('numero_serie', '').strip()
         try:
@@ -254,156 +255,188 @@ def crear_producto(request):
                 'modelo': producto.modelo,
                 'color': producto.color,
                 'categoria': producto.categoria,
+                'lote': producto.lote,
+                'bodega': producto.bodega.nombre if producto.bodega else None,
+                'imagen': producto.imagen.url if producto.imagen else '',
             }
         except Producto.DoesNotExist:
             data = {'existe': False}
         return JsonResponse(data)
 
-    # Cargar productos activos
-    productos = list(Producto.objects.filter(estado=1).values('numero_serie', 'stock'))
-
+    # Manejo POST (crear o actualizar producto)
     if request.method == 'POST':
-            form = ProductoForm(request.POST)
-            numero_serie = request.POST.get('numero_serie', '').strip()
+        numero_serie = request.POST.get('numero_serie', '').strip()
+        try:
+            cantidad = int(request.POST.get('cantidad_ingresar', '0'))
+        except (ValueError, TypeError):
+            cantidad = 0
 
+        if cantidad <= 0:
+            mensaje = "❌ Ingresa una cantidad válida mayor a cero."
+            form = ProductoForm(request.POST, request.FILES)  # aún si es inválido, pasar datos al form
+        else:
             try:
-                cantidad = int(request.POST.get('cantidad_ingresar', '0'))
-            except (ValueError, TypeError):
-                cantidad = 0
-
-            if cantidad <= 0:
-                mensaje = "❌ Ingresa una cantidad válida mayor a cero."
-            else:
-                try:
-                    # ✅ Producto ya existe: actualiza solo el stock
-                    producto = Producto.objects.get(numero_serie__iexact=numero_serie)
-                    producto.stock += cantidad
-                    producto.modificacion_usuario = request.user.username
-                    producto.save()
-                    mensaje = f"✅ Producto existente actualizado. Nuevo stock: {producto.stock}"
-                    stock_actual = producto.stock
-                    form = ProductoForm()  # Limpiar el formulario
-                except Producto.DoesNotExist:
-                    # 🆕 Producto nuevo: validamos y lo guardamos
-                    if form.is_valid():
-                        nuevo = form.save(commit=False)
-                        nuevo.stock = cantidad
-                        nuevo.creacion_usuario = request.user.username
-                        nuevo.modificacion_usuario = request.user.username
-                        nuevo.estado = 1
-                        nuevo.save()
-                        mensaje = "✅ Producto nuevo creado correctamente."
-                        stock_actual = nuevo.stock
-                        form = ProductoForm()
-                    else:
-                        mensaje = "❌ Formulario inválido. Revisa los datos."
-
-    productos = list(Producto.objects.filter(estado=1).values('numero_serie', 'stock'))
+                # Producto existente
+                producto = Producto.objects.get(numero_serie__iexact=numero_serie)
+                form = ProductoForm(request.POST, request.FILES, instance=producto)
+                if form.is_valid():
+                    prod = form.save(commit=False)
+                    prod.stock = (prod.stock or 0) + cantidad
+                    prod.modificacion_usuario = request.user.username
+                    prod.save()
+                    mensaje = f"✅ Producto existente actualizado. Nuevo stock: {prod.stock}"
+                    stock_actual = prod.stock
+                    mostrar_stock = True
+                else:
+                    mensaje = "❌ Formulario inválido. Revisa los datos."
+                    print(form.errors)
+            except Producto.DoesNotExist:
+                # Producto nuevo
+                form = ProductoForm(request.POST, request.FILES)
+                if form.is_valid():
+                    nuevo = form.save(commit=False)
+                    nuevo.stock = cantidad
+                    nuevo.creacion_usuario = request.user.username
+                    nuevo.modificacion_usuario = request.user.username
+                    nuevo.estado = 1
+                    nuevo.save()
+                    mensaje = "✅ Producto nuevo creado correctamente."
+                    stock_actual = nuevo.stock
+                    mostrar_stock = True
+                    form = ProductoForm()  # limpiar formulario
+                else:
+                    mensaje = "❌ Formulario inválido. Revisa los datos."
+                    print(form.errors)
+    else:
+        # Método GET sin AJAX: precargar si existe número de serie
+        form = ProductoForm()
+        numero_serie = request.GET.get('numero_serie', '').strip()
+        if numero_serie:
+            try:
+                producto = Producto.objects.get(numero_serie__iexact=numero_serie)
+                stock_actual = producto.stock
+                mostrar_stock = True
+                form = ProductoForm(instance=producto)
+            except Producto.DoesNotExist:
+                pass  # Producto nuevo, formulario vacío
 
     return render(request, 'facturacion_cliente/producto/crear_producto.html', {
         'form_Producto': form,
         'mensaje': mensaje,
         'stock_actual': stock_actual,
-        'productos_json': json.dumps(productos, ensure_ascii=False),
+        'mostrar_stock': mostrar_stock,
     })
+
 @login_required
-@cargo_requerido(['Admin', 'Gerente','cajero','supervisor'])
+@cargo_requerido(['Admin', 'Gerente', 'cajero', 'supervisor'])
 def consultar_producto(request):
-    productos = None
-    buscarProductoForm = BuscarProductoForm(request.POST or None)
+    productos = Producto.objects.all()
+    form = BuscarProductoForm(request.POST or None)
 
-    if request.method == "POST" and 'buscar_producto' in request.POST and buscarProductoForm.is_valid():
-        nombre = buscarProductoForm.cleaned_data.get('nombre')
-        modelo = buscarProductoForm.cleaned_data.get('modelo')
-        numero_serie = buscarProductoForm.cleaned_data.get('numero_serie')
-        fecha = buscarProductoForm.cleaned_data.get('fecha')
+    if request.method == 'POST' and form.is_valid():
+        nombre = form.cleaned_data.get('nombre')
+        categoria = form.cleaned_data.get('categoria')
+        numero_serie = form.cleaned_data.get('numero_serie')
+        fecha_creacion = form.cleaned_data.get('fecha_creacion')
 
-        filtros = Q()
         if nombre:
-            filtros &= Q(nombre__icontains=nombre)
-        if modelo:
-            filtros &= Q(modelo__icontains=modelo)
+            productos = productos.filter(nombre__icontains=nombre)
+        if categoria:
+            productos = productos.filter(categoria__icontains=categoria)
         if numero_serie:
-            filtros &= Q(numero_serie__icontains=numero_serie)
-        if fecha:
-            filtros &= Q(fecha_creacion__lte=fecha)
-
-        productos = Producto.objects.filter(filtros)
+            productos = productos.filter(numero_serie__icontains=numero_serie)
+        if fecha_creacion:
+            productos = productos.filter(fecha_creacion=fecha_creacion)
 
     context = {
-        'buscador_Producto': buscarProductoForm,
         'productos': productos,
+        'buscador_Producto': form,
     }
-    return render(request, "facturacion_cliente/producto/consultar_producto.html", context)
+    return render(request, 'facturacion_cliente/producto/consultar_producto.html', context)
 
 @login_required
-@cargo_requerido(['Admin', 'Gerente'])
-def exportar_pdf_producto(request):
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
-    elements = []
-    styles = getSampleStyleSheet()
+@cargo_requerido(['Admin', 'Gerente', 'cajero', 'supervisor'])
+def exportar_excel_producto(request):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Productos"
 
-    empresa_nombre = "📚 Empresa "
-    fecha_actual = timezone.now().strftime("%d/%m/%Y %H:%M:%S")
-    usuario = request.user.username.upper()
+    # Estilos
+    font_encabezado = Font(bold=True, color="FFFFFF")
+    fill_encabezado = PatternFill("solid", fgColor="4F81BD")  # azul profesional
+    alineacion_centrada = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    borde = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
 
-    elements.append(Paragraph(empresa_nombre, styles['Title']))
-    elements.append(Paragraph("Reporte de productos registrados", styles['Heading2']))
-    elements.append(Paragraph(f"Fecha de creación del reporte: {fecha_actual}", styles['Normal']))
-    elements.append(Paragraph(f"Generado por: {usuario}", styles['Normal']))
-    elements.append(Spacer(1, 12))
-
-    encabezados = ["#", "Bodega", "Nombre", "Modelo", "Lote", "N° Serie", "Color", "Categoría", "Precio", "Stock", "Estado"]
-    data = [encabezados]
-
-    productos = Producto.objects.all().order_by("nombre")
-    for i, p in enumerate(productos, start=1):
-        data.append([
-            i,
-            p.bodega.nombre if p.bodega else "Sin Bodega",
-            p.nombre,
-            p.modelo,
-            p.lote,
-            p.numero_serie,
-            p.color,
-            p.categoria,
-            f"${p.precio:.2f}",
-            p.stock,
-            "Activo" if p.estado == 1 else "Inactivo"
-                    ]) # type: ignore
-
-    # Ajuste de ancho de columnas
-    col_widths = [
-        25,   # #
-        70,   # Bodega
-        70,   # Nombre
-        60,   # Modelo
-        50,   # Lote
-        60,   # N° Serie
-        50,   # Color
-        60,   # Categoría
-        50,   # Precio
-        40,   # Stock
-        50    # Estado
+    # Encabezados
+    columnas = [
+        'Nombre', 'Modelo', 'Número de Serie', 'Categoría', 'Color', 
+        'Lote', 'Precio', 'Stock', 'Bodega', 'Fecha de Creación', 'Imagen'
     ]
+    ws.append(columnas)
 
-    table = Table(data, colWidths=col_widths, repeatRows=1)
-    table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0d6efd")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, 0), 11),
-        ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
-        ("BACKGROUND", (0, 1), (-1, -1), colors.whitesmoke),
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-    ]))
+    # Aplicar estilo encabezado
+    for col_num, columna in enumerate(columnas, start=1):
+        celda = ws.cell(row=1, column=col_num)
+        celda.font = font_encabezado
+        celda.fill = fill_encabezado
+        celda.alignment = alineacion_centrada
+        celda.border = borde
 
-    elements.append(table)
-    doc.build(elements)
-    buffer.seek(0)
-    return HttpResponse(buffer, content_type='application/pdf')
+    productos = Producto.objects.all()
+
+    for idx, p in enumerate(productos, start=2):
+        ws.cell(row=idx, column=1, value=p.nombre).alignment = alineacion_centrada
+        ws.cell(row=idx, column=2, value=p.modelo).alignment = alineacion_centrada
+        ws.cell(row=idx, column=3, value=p.numero_serie).alignment = alineacion_centrada
+        ws.cell(row=idx, column=4, value=p.categoria).alignment = alineacion_centrada
+        ws.cell(row=idx, column=5, value=p.color).alignment = alineacion_centrada
+        ws.cell(row=idx, column=6, value=p.lote).alignment = alineacion_centrada
+        ws.cell(row=idx, column=7, value=float(p.precio)).alignment = alineacion_centrada
+        ws.cell(row=idx, column=8, value=p.stock).alignment = alineacion_centrada
+        ws.cell(row=idx, column=9, value=p.bodega.nombre if p.bodega else '').alignment = alineacion_centrada
+        ws.cell(row=idx, column=10, value=p.fecha_creacion.strftime('%Y-%m-%d') if p.fecha_creacion else '').alignment = alineacion_centrada
+
+        # Aplicar bordes a datos
+        for col in range(1, 11):
+            ws.cell(row=idx, column=col).border = borde
+
+        # Insertar imagen
+        if p.imagen:
+            try:
+                ruta_imagen = p.imagen.path
+                if os.path.exists(ruta_imagen):
+                    img = ExcelImage(ruta_imagen)
+                    img.width = 100  # ancho mayor para mejor visualización
+                    img.height = 100
+                    celda_imagen = f'K{idx}'
+                    ws.add_image(img, celda_imagen)
+                    # Ajustar alto de fila para que la imagen quepa bien
+                    ws.row_dimensions[idx].height = 80
+            except Exception as e:
+                print(f"Error cargando imagen para producto {p.nombre}: {e}")
+
+            # Bordes para la celda de imagen
+            ws.cell(row=idx, column=11).border = borde
+
+    # Ajustar ancho columnas
+    anchos = [20, 15, 20, 15, 15, 12, 12, 10, 18, 18, 18]
+    for i, ancho in enumerate(anchos, start=1):
+        ws.column_dimensions[chr(64 + i)].width = ancho
+
+    # Congelar fila de encabezado
+    ws.freeze_panes = 'A2'
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="productos.xlsx"'
+    wb.save(response)
+    return response
     
 @login_required
 @cargo_requerido(['Admin', 'Gerente'])
@@ -411,7 +444,8 @@ def modificar_producto(request, id):
     producto = get_object_or_404(Producto, pk=id)
 
     if request.method == 'POST':
-        form = ProductoForm(request.POST, instance=producto)
+        # Agrega request.FILES para manejar archivos como imágenes
+        form = ProductoForm(request.POST, request.FILES, instance=producto)
         if form.is_valid():
             form.save()
             mensaje = "Producto modificado correctamente"
@@ -427,7 +461,6 @@ def modificar_producto(request, id):
     return render(request, 'facturacion_cliente/producto/modificar_producto.html', {
         'form_Producto': form
     })
-
 @login_required
 @cargo_requerido(['admin', 'Gerente','supervisor'])
 def eliminar_producto(request: HttpRequest, id: int) -> HttpResponse:
@@ -1263,79 +1296,74 @@ def consultar_factura(request, id=None):
 
 
 @login_required
-@cargo_requerido(['admin', 'Gerente', 'cajero','supervisor' ])
-def exportar_pdf_factura(request,factura_id):
-    
+@cargo_requerido(['admin', 'Gerente', 'cajero', 'supervisor'])
+def exportar_pdf_factura(request, factura_id):
     if not factura_id:
         return HttpResponse("ID de factura no proporcionado.", status=400)
 
     try:
-        factura = Factura.objects.get(pk=factura_id)
+        factura = Factura.objects.select_related('cliente', 'sucursal').get(pk=factura_id)
     except Factura.DoesNotExist:
         return HttpResponse("Factura no encontrada.", status=404)
 
+    cliente = factura.cliente
     sucursal = factura.sucursal
+    detalles = factura.detalles.filter(estado=1)  # type: ignore
 
     buffer = io.BytesIO()
     p = canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
-    left_margin = 50
-    top = height - 50
+    MARGIN = 50
+    TOP = height - MARGIN
+    RIGHT_X = width - 250
 
-    # Encabezado empresa y factura
+    # === ENCABEZADO ===
     p.setFont("Helvetica-Bold", 10)
-    p.drawString(left_margin, top - 15, f"R.U.C.: {sucursal.ruc}")
+    p.drawString(MARGIN, TOP - 15, f"R.U.C.: {sucursal.ruc}")
     p.setFont("Helvetica", 9)
-    p.drawString(left_margin, top - 30, sucursal.nombre.upper())
-    p.drawString(left_margin, top - 45, f"Local: {sucursal.local}")
-    p.drawString(left_margin, top - 60, f"Dirección: {sucursal.direccion}")
-    p.drawString(left_margin, top - 75, f"Teléfono: {sucursal.telefono}")
-    p.drawString(left_margin, top - 90, f"Correo: {sucursal.correo}")
-    p.drawString(left_margin, top - 105, "Obligado a llevar contabilidad: SI")
-    p.drawString(left_margin, top - 120, "Emisión: NORMAL")
+    p.drawString(MARGIN, TOP - 30, sucursal.nombre.upper())
+    p.drawString(MARGIN, TOP - 45, f"Local: {sucursal.local}")
+    p.drawString(MARGIN, TOP - 60, f"Dirección: {sucursal.direccion}")
+    p.drawString(MARGIN, TOP - 75, f"Teléfono: {sucursal.telefono}")
+    p.drawString(MARGIN, TOP - 90, f"Correo: {sucursal.correo}")
+    p.drawString(MARGIN, TOP - 105, "Obligado a llevar contabilidad: SI")
+    p.drawString(MARGIN, TOP - 120, "Emisión: NORMAL")
 
-    right_x = width - 250
+    # Datos de factura
     p.setFont("Helvetica-Bold", 10)
-    p.drawString(right_x, top - 15, f"FACTURA No.: {factura.numero_factura or 'N/A'}")
+    p.drawString(RIGHT_X, TOP - 15, f"FACTURA No.: {factura.numero_factura or 'N/A'}")
     p.setFont("Helvetica", 9)
-    p.drawString(right_x, top - 30, "AUTORIZACIÓN:")
+    p.drawString(RIGHT_X, TOP - 30, "AUTORIZACIÓN:")
     p.setFont("Helvetica", 7)
-    p.drawString(right_x, top - 45, getattr(factura, 'numero_autorizacion', '000000000000000'))
+    p.drawString(RIGHT_X, TOP - 45, getattr(factura, 'numero_autorizacion', '000000000000000'))
     p.setFont("Helvetica", 9)
-    p.drawString(right_x, top - 60, f"Fecha Emisión: {factura.fecha_emision.strftime('%d/%m/%Y')}")
+    p.drawString(RIGHT_X, TOP - 60, f"Fecha Emisión: {factura.fecha_emision.strftime('%d/%m/%Y')}")
+    if factura.fecha_pago_limite:
+        p.drawString(RIGHT_X, TOP - 75, f"Fecha Máx. de Pago: {factura.fecha_pago_limite.strftime('%d/%m/%Y')}")
 
-    fecha_pago = getattr(factura, 'fecha_pago_limite', None)
-    if fecha_pago:
-        p.drawString(right_x, top - 75, f"Fecha Máx. de Pago: {fecha_pago.strftime('%d/%m/%Y')}")
+    p.line(MARGIN, TOP - 135, width - MARGIN, TOP - 135)
 
-    p.line(left_margin, top - 135, width - left_margin, top - 135)
-
-    # Información cliente
+    # === CLIENTE ===
     p.setFont("Helvetica-Bold", 10)
-    p.drawString(left_margin, top - 150, "CLIENTE:")
+    p.drawString(MARGIN, TOP - 150, "CLIENTE:")
     p.setFont("Helvetica", 9)
-    cliente = factura.cliente
-    p.drawString(left_margin + 70, top - 150, f"{cliente.nombre} {getattr(cliente, 'apellido', '')}   C.I.: {cliente.cedula}")
-    p.drawString(left_margin + 70, top - 165, f"Dirección: {cliente.direccion or 'No disponible'}")
-    p.drawString(left_margin + 70, top - 180, f"Teléfono: {cliente.telefono or 'N/A'}")
-    p.drawString(left_margin + 70, top - 195, f"Email: {cliente.correo or 'N/A'}")
+    p.drawString(MARGIN + 70, TOP - 150, f"{cliente.nombre} {getattr(cliente, 'apellido', '')}   C.I.: {cliente.cedula}")
+    p.drawString(MARGIN + 70, TOP - 165, f"Dirección: {cliente.direccion or 'No disponible'}")
+    p.drawString(MARGIN + 70, TOP - 180, f"Teléfono: {cliente.telefono or 'N/A'}")
+    p.drawString(MARGIN + 70, TOP - 195, f"Email: {cliente.correo or 'N/A'}")
 
-    # Detalles productos
-    detalles = factura.detalles.filter(estado=1) # type: ignore
+    # === DETALLES DE PRODUCTOS ===
     data = [["Producto", "Cantidad", "Precio Unitario", "Descuento %", "Subtotal", "IVA", "Total"]]
+    subtotal_general = iva_general = total_general = Decimal('0.00')
 
-    subtotal_general = Decimal('0.00')
-    iva_general = Decimal('0.00')
-    total_general = Decimal('0.00')
+    for detalle in detalles:
+        cantidad = Decimal(detalle.cantidad_producto)
+        precio_unitario = detalle.precio_factura or Decimal('0.00')
+        descuento = detalle.descuento_total or Decimal('0.00')
+        iva_pct = Decimal(detalle.iva.porcentaje) if detalle.iva else Decimal('0.00')
 
-    for d in detalles:
-        cant = Decimal(d.cantidad_producto)
-        precio = d.precio_factura or Decimal('0.00')
-        descuento_pct = Decimal(d.descuento_total) if d.descuento_total else Decimal('0.00')
-        iva_pct = Decimal(d.iva.porcentaje) if d.iva else Decimal('0.00')
-
-        subtotal = (precio * cant) * (Decimal('1.00') - (descuento_pct / Decimal('100.00')))
-        iva = subtotal * (iva_pct / Decimal('100.00'))
+        subtotal = (precio_unitario * cantidad) * (1 - descuento / 100)
+        iva = subtotal * (iva_pct / 100)
         total = subtotal + iva
 
         subtotal_general += subtotal
@@ -1343,13 +1371,13 @@ def exportar_pdf_factura(request,factura_id):
         total_general += total
 
         data.append([
-            str(d.producto),
-            str(cant),
-            f"{precio:.2f}",
-            f"{descuento_pct:.2f}%",
+            str(detalle.producto),
+            str(cantidad),
+            f"{precio_unitario:.2f}",
+            f"{descuento:.2f}%",
             f"{subtotal:.2f}",
             f"{iva:.2f}",
-            f"{total:.2f}",
+            f"{total:.2f}"
         ])
 
     table = Table(data, colWidths=[140, 60, 70, 70, 70, 60, 70])
@@ -1363,15 +1391,15 @@ def exportar_pdf_factura(request,factura_id):
     ]))
 
     table_width, table_height = table.wrap(0, 0)
-    table_y = top - 230 - table_height
-    if table_y < 100:
+    y_table = TOP - 230 - table_height
+    if y_table < 100:
         p.showPage()
-        table_y = height - 100
+        y_table = height - 100
 
-    table.drawOn(p, left_margin, table_y)
+    table.drawOn(p, MARGIN, y_table)
 
-    # Totales
-    y_totales = table_y - 40
+    # === TOTALES ===
+    y_totales = y_table - 40
     p.setFont("Helvetica-Bold", 10)
     p.setFillColor(colors.black)
     p.drawRightString(width - 60, y_totales, f"Subtotal: {subtotal_general:.2f}")
@@ -1380,7 +1408,7 @@ def exportar_pdf_factura(request,factura_id):
     p.setFillColor(colors.HexColor("#003366"))
     p.drawRightString(width - 60, y_totales - 35, f"TOTAL A PAGAR: {total_general:.2f}")
 
-    # Footer
+    # === FOOTER ===
     p.setFont("Helvetica-Oblique", 8)
     p.setFillColor(colors.black)
     p.drawCentredString(width / 2, 30, "Gracias por su compra. Documento generado electrónicamente.")
@@ -1388,9 +1416,12 @@ def exportar_pdf_factura(request,factura_id):
     p.showPage()
     p.save()
     buffer.seek(0)
-    response = HttpResponse(buffer, content_type='application/pdf')
-    response['Content-Disposition'] = f'inline; filename="factura_{factura.id}.pdf"'
-    return response
+
+    return HttpResponse(
+        buffer,
+        content_type='application/pdf',
+        headers={'Content-Disposition': f'inline; filename="factura_{factura.id}.pdf"'}
+    )
 
 
 @login_required

@@ -53,7 +53,6 @@ class ClienteForm(forms.ModelForm):
 
 class ProductoForm(forms.ModelForm):
     cantidad_ingresar = forms.IntegerField(
-        
         required=False,
         label='Cantidad a Ingresar:',
         widget=forms.NumberInput(attrs={
@@ -61,11 +60,12 @@ class ProductoForm(forms.ModelForm):
             'placeholder': 'Cantidad a agregar al stock',
         })
     )
+
     class Meta:
         model = Producto
         fields = [
-            'numero_serie', 'lote', 'bodega', 'nombre', 'modelo', 'color',
-            'categoria', 'precio', 'stock'  # stock agregado aquí
+            'numero_serie', 'lote', 'bodega', 'imagen', 'nombre', 'modelo',
+            'color', 'categoria', 'precio', 'stock'
         ]
         widgets = {
             'numero_serie': forms.TextInput(attrs={
@@ -81,6 +81,11 @@ class ProductoForm(forms.ModelForm):
             'bodega': forms.Select(attrs={
                 'class': 'form-select',
                 'placeholder': 'Seleccione una bodega'
+            }),
+            'imagen': forms.ClearableFileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*',
+                'placeholder': 'Seleccione una imagen del producto'
             }),
             'nombre': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -100,7 +105,7 @@ class ProductoForm(forms.ModelForm):
             'categoria': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Categoría',
-                'maxlength': '20'
+                'maxlength': '100'
             }),
             'precio': forms.NumberInput(attrs={
                 'class': 'form-control',
@@ -118,6 +123,7 @@ class ProductoForm(forms.ModelForm):
             'numero_serie': 'Número de Serie:',
             'lote': 'Lote:',
             'bodega': 'Bodega:',
+            'imagen': 'Imagen del Producto:',
             'nombre': 'Nombre:',
             'modelo': 'Modelo:',
             'color': 'Color:',
@@ -126,11 +132,25 @@ class ProductoForm(forms.ModelForm):
             'stock': 'Stock:',
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Siempre marcar stock como NO obligatorio
+        self.fields['stock'].required = False
+
+        if not self.instance.pk:
+            # Producto nuevo → ocultar campo stock
+            self.fields['stock'].widget = forms.HiddenInput()
+        else:
+            # Producto existente → campo stock solo lectura
+            self.fields['stock'].widget.attrs['readonly'] = True
+
     def clean_precio(self):
         precio = self.cleaned_data.get('precio')
         if precio is not None and precio < 0:
             raise forms.ValidationError("El precio no puede ser negativo.")
         return precio
+
 #########################Factura y Factura Detalle#########################
 
 
@@ -403,7 +423,7 @@ class BuscarClienteForm(forms.Form):
 
 class BuscarProductoForm(forms.Form):
     nombre = forms.CharField(max_length=20, required=False)
-    modelo = forms.CharField(max_length=40, required=False)
+    categoria = forms.CharField(max_length=40, required=False)
     numero_serie = forms.CharField(max_length=20, required=False)
     fecha = forms.DateTimeField(
         required=False,

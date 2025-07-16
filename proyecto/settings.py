@@ -105,7 +105,15 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 # Tipo de clave primaria por defecto
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+
 # Configuración de la aplicación# PayPhone
 # PAYPHONE_API_KEY = 'tu_api_key'
 # PAYPHONE_APP_CODE = 'tu_app_code'
 # PAYPHONE_STORE_ID = 'Empresa'
+
+

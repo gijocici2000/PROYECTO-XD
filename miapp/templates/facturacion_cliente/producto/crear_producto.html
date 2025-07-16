@@ -4,114 +4,130 @@
 <div class="container mt-4 text-light">
   <h2 class="text-center mb-4 text-primary"><b>Agregar / Actualizar Producto</b></h2>
 
+  {# Mensaje y errores del formulario #}
   {% if mensaje %}
-    <div class="alert alert-info text-dark fw-bold text-center">{{ mensaje }}</div>
+    <div class="alert {% if form_Producto.errors %}alert-danger{% else %}alert-info{% endif %} text-dark fw-bold text-center">
+      {{ mensaje }}
+    </div>
+    {% if form_Producto.errors %}
+      <ul class="alert alert-warning">
+        {% for field, errors in form_Producto.errors.items %}
+          <li><strong>{{ field|capfirst }}:</strong> {{ errors|join:", " }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
   {% endif %}
 
-  <form method="post" class="w-50 mx-auto p-4 rounded" style="background-color: #308a9e; border: 1px solid #333;">
+  {% if stock_actual is not None %}
+    <div class="alert alert-success text-center fw-bold">
+      📦 Stock actual del producto: {{ stock_actual }}
+    </div>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" class="w-50 mx-auto p-4 rounded" style="background-color: #308a9e; border: 1px solid #333;">
     {% csrf_token %}
     <div class="row">
-      <div class=" mb-3">
+
+      <!-- Número de serie -->
+      <div class="mb-3">
         {{ form_Producto.numero_serie.label_tag }}
         {{ form_Producto.numero_serie }}
-        {% for error in form_Producto.numero_serie.errors %}
-          <div class="text-danger small">{{ error }}</div>
-        {% endfor %}
       </div>
 
+      <!-- Lote -->
       <div class="mb-3">
         {{ form_Producto.lote.label_tag }}
         {{ form_Producto.lote }}
-        {% for error in form_Producto.lote.errors %}
-          <div class="text-danger small">{{ error }}</div>
-        {% endfor %}
       </div>
 
+      <!-- Bodega -->
       <div class="mb-3">
         {{ form_Producto.bodega.label_tag }}
         {{ form_Producto.bodega }}
-        {% for error in form_Producto.bodega.errors %}
-          <div class="text-danger small">{{ error }}</div>
-        {% endfor %}
       </div>
-      <div class=" mb-3">
+
+      <!-- Imagen -->
+      <div class="mb-3">
+        {{ form_Producto.imagen.label_tag }}
+        {{ form_Producto.imagen }}
+      </div>
+
+      {% if form_Producto.instance.imagen %}
+        <div class="mb-3 text-center">
+          <label class="form-label fw-bold">Imagen actual:</label><br>
+          <img src="{{ form_Producto.instance.imagen.url }}" alt="Imagen actual" class="img-thumbnail" style="max-height: 200px;">
+        </div>
+      {% endif %}
+
+      <!-- Vista previa nueva -->
+      <div class="mb-3 text-center">
+        <label class="form-label fw-bold">Vista previa nueva:</label><br>
+        <img id="imagen-preview" src="#" alt="Vista previa nueva" class="img-thumbnail" style="max-height: 200px; display: none; cursor: zoom-in;">
+      </div>
+
+      <!-- Nombre -->
+      <div class="mb-3">
         {{ form_Producto.nombre.label_tag }}
         {{ form_Producto.nombre }}
-        {% for error in form_Producto.nombre.errors %}
-          <div class="text-danger small">{{ error }}</div>
-        {% endfor %}
       </div>
 
-      <div class=" mb-3">
+      <!-- Modelo -->
+      <div class="mb-3">
         {{ form_Producto.modelo.label_tag }}
         {{ form_Producto.modelo }}
-        {% for error in form_Producto.modelo.errors %}
-          <div class="text-danger small">{{ error }}</div>
-        {% endfor %}
       </div>
 
-      <div class=" mb-3">
+      <!-- Color -->
+      <div class="mb-3">
         {{ form_Producto.color.label_tag }}
         {{ form_Producto.color }}
-        {% for error in form_Producto.color.errors %}
-          <div class="text-danger small">{{ error }}</div>
-        {% endfor %}
       </div>
 
-      <div class=" mb-3">
+      <!-- Categoría -->
+      <div class="mb-3">
         {{ form_Producto.categoria.label_tag }}
         {{ form_Producto.categoria }}
-        {% for error in form_Producto.categoria.errors %}
-          <div class="text-danger small">{{ error }}</div>
-        {% endfor %}
       </div>
 
+      <!-- Precio -->
       <div class="mb-3">
         {{ form_Producto.precio.label_tag }}
         {{ form_Producto.precio }}
-        {% for error in form_Producto.precio.errors %}
-          <div class="text-danger small">{{ error }}</div>
-        {% endfor %}
       </div>
 
-      <div class=" mb-3">
+      <!-- Stock actual -->
+      <div class="mb-3" id="stock-container" {% if mostrar_stock %}style="display: block;"{% else %}style="display: none;"{% endif %}>
+        <label><strong>Stock:</strong></label>
+        <input type="text" id="id_stock" class="form-control bg-light" value="{{ stock_actual|default:'0' }}" readonly>
+      </div>
+
+      <!-- Cantidad a ingresar -->
+      <div class="mb-3">
         {{ form_Producto.cantidad_ingresar.label_tag }}
         {{ form_Producto.cantidad_ingresar }}
-        {% for error in form_Producto.cantidad_ingresar.errors %}
-          <div class="text-danger small">{{ error }}</div>
-        {% endfor %}
       </div>
+
     </div>
 
     <div class="text-center">
       <button type="submit" class="btn btn-success px-5">Guardar Producto</button>
     </div>
   </form>
-
-  {% if stock_actual %}
-    <div class="mt-4 alert alert-success text-center fw-bold">
-      Stock actual: {{ stock_actual }}
-    </div>
-  {% endif %}
 </div>
 
-<!-- Scripts -->
+<!-- JS -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
   $(document).ready(function () {
+    // AJAX: Buscar producto por número de serie
     $("#id_numero_serie").on("change blur", function () {
       const numeroSerie = $(this).val().trim();
-
       if (numeroSerie.length === 0) return;
 
       $.ajax({
         url: window.location.href,
-        data: {
-          numero_serie: numeroSerie
-        },
-        headers: {
-          "X-Requested-With": "XMLHttpRequest"
-        },
+        data: { numero_serie: numeroSerie },
+        headers: { "X-Requested-With": "XMLHttpRequest" },
         success: function (response) {
           if (response.existe) {
             $("#id_nombre").val(response.nombre);
@@ -119,16 +135,73 @@
             $("#id_color").val(response.color);
             $("#id_categoria").val(response.categoria);
             $("#id_precio").val(response.precio);
-
+            $("#id_stock").val(response.stock);
+            $("#stock-container").show();
             $("#id_nombre, #id_modelo, #id_color, #id_categoria, #id_precio").prop("readonly", true);
           } else {
             $("#id_nombre, #id_modelo, #id_color, #id_categoria, #id_precio").val("").prop("readonly", false);
+            $("#id_stock").val("");
+            $("#stock-container").hide();
           }
         },
         error: function () {
           console.error("Error al consultar producto.");
         }
       });
+    });
+
+    // Vista previa imagen
+    $("#id_imagen").on("change", function () {
+      const input = this;
+      const file = input.files[0];
+      const preview = document.getElementById("imagen-preview");
+
+      if (!file) {
+        preview.src = "#";
+        preview.style.display = "none";
+        return;
+      }
+
+      const allowedTypes = ["image/jpeg", "image/png"];
+      if (!allowedTypes.includes(file.type)) {
+        alert("Solo se permiten imágenes JPG o PNG.");
+        input.value = "";
+        preview.style.display = "none";
+        return;
+      }
+
+      if (file.size > 2 * 1024 * 1024) {
+        alert("La imagen debe pesar menos de 2MB.");
+        input.value = "";
+        preview.style.display = "none";
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        preview.src = e.target.result;
+        preview.style.display = "block";
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Zoom en imagen
+    document.getElementById("imagen-preview").addEventListener("click", function () {
+      if (this.style.maxHeight === "90vh") {
+        this.style.maxHeight = "200px";
+        this.style.zIndex = "1";
+        this.style.position = "relative";
+      } else {
+        this.style.maxHeight = "90vh";
+        this.style.position = "fixed";
+        this.style.top = "50%";
+        this.style.left = "50%";
+        this.style.transform = "translate(-50%, -50%)";
+        this.style.zIndex = "9999";
+        this.style.border = "3px solid #fff";
+        this.style.boxShadow = "0 0 20px #000";
+        this.style.backgroundColor = "#000";
+      }
     });
   });
 </script>

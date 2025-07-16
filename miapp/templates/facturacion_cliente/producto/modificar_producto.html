@@ -8,7 +8,7 @@
         <div class="alert alert-success">{{ mensaje }}</div>
     {% endif %}
 
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
 
         {% for field in form_Producto.visible_fields %}
@@ -23,9 +23,17 @@
             </div>
         {% endfor %}
 
+        <!-- Mostrar imagen actual si existe -->
+        {% if form_Producto.instance.imagen %}
+            <div class="mb-3 text-center">
+                <label class="form-label fw-bold">Imagen actual:</label><br>
+                <img src="{{ form_Producto.instance.imagen.url }}" alt="Imagen actual" class="img-thumbnail" style="max-height: 200px;">
+            </div>
+        {% endif %}
+
         <div class="d-flex justify-content-between mt-4">
             <button type="submit" class="btn btn-success px-4">Guardar Cambios</button>
-            <a href="{% url 'consultar_producto' %}" class="btn btn-outline-danger px-4">salir</a>
+            <a href="{% url 'consultar_producto' %}" class="btn btn-outline-danger px-4">Salir</a>
         </div>
     </form>
 </div>

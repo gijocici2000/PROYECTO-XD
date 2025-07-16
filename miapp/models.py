@@ -111,6 +111,7 @@ class Cliente(models.Model):
 class Proveedor(models.Model):
     nombre = models.CharField(max_length=20)
     marca = models.CharField(max_length=20)
+    
     producto = models.CharField(max_length=30)
     ruc= models.CharField(max_length=13, default="",)
     telefono = models.CharField(max_length=12)
@@ -149,13 +150,13 @@ class Producto(models.Model):
     numero_serie = models.CharField(max_length=100, unique=True,)
     lote = models.CharField(max_length=50)  # Nuevo campo
     bodega = models.ForeignKey(Bodega, on_delete=models.CASCADE, null=True, blank=True)
+    imagen = models.ImageField(upload_to='productos/', blank=True, null=True)
     nombre = models.CharField(max_length=100)
     modelo = models.CharField(max_length=100)
     color = models.CharField(max_length=50)
     categoria = models.CharField(max_length=100)
     precio = models.DecimalField(max_digits=10, decimal_places=2, default= Decimal('0.00'))  # Más seguro que Float
-    stock = models.PositiveIntegerField( ) 
-    
+    stock = models.IntegerField(default=0)  
     
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_modificacion = models.DateTimeField(auto_now=True)
@@ -172,6 +173,9 @@ class Producto(models.Model):
         db_table = "producto"
         verbose_name = "producto"
         verbose_name_plural = "productos"
+
+
+    
 
     def __str__(self):
         return f"{self.nombre} - {self.numero_serie}"

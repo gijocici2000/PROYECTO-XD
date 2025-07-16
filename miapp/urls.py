@@ -20,7 +20,7 @@ urlpatterns = [
     path('producto/consultar/', views.consultar_producto, name='consultar_producto'),
     path('producto/modificar/<int:id>/', views.modificar_producto, name='modificar_producto'),
     path('producto/eliminar/<int:id>/', views.eliminar_producto, name='eliminar_producto'),
-    path('producto/exportar_pdf/', views.exportar_pdf_producto, name='exportar_pdf_producto'),
+     path('producto/exportar/', views.exportar_excel_producto, name='exportar_excel_producto'),
 
     # Descuento
     path('descuento/consultar/', views.consultar_descuento, name='consultar_descuento'),
@@ -64,4 +64,4 @@ urlpatterns = [
     path('cotizacion_detalle/crear/', views.crear_cotizacion_detalle, name='crear_cotizacion_detalle'),
     path('cotizacion_detalle/eliminar/<int:id>/', views.eliminar_cotizacion_detalle, name='eliminar_cotizacion_detalle'),
     path('cotizacion_detalle/modificar/<int:id>/', views.modificar_cotizacion_detalle, name='modificar_cotizacion_detalle'),
-]
+]  
