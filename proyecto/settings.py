@@ -22,9 +22,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     
-    'miapp', 
-    'compras',  # Asegúrate de que tu app de compras esté incluida
-# Asegúrate de que tu app de compras esté incluida
+    'miapp'
+  
 ]
 
 

@@ -2,18 +2,20 @@
 
 {% block main %}
 <div class="container my-4">
-    
+
     <div class="alert alert-danger text-center">
         <h3>¿Estás seguro que deseas eliminar este cliente?</h3>
-        <p>Nombre: <strong>{{ cliente.nombre }}</strong></p>
-        <p>Cédula: <strong>{{ cliente.cedula }}</strong></p>
+        <p><strong>Nombre:</strong> {{ cliente.nombre }} {{ cliente.apellido }}</p>
+        <p><strong>Cédula:</strong> {{ cliente.cedula }}</p>
+        <p><strong>Correo:</strong> {{ cliente.correo }}</p>
+        <p><strong>Teléfono:</strong> {{ cliente.telefono }}</p>
     </div>
 
     <form method="post" class="text-center">
         {% csrf_token %}
-        
+
         <button type="submit" class="btn btn-danger me-2">
-            <i class="bi bi-trash"></i> Eliminar Cliente
+            <i class="bi bi-trash"></i> Confirmar Eliminación
         </button>
 
         <a href="{% url 'consultar_cliente' %}" class="btn btn-secondary">

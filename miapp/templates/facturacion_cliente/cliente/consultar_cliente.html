@@ -1,7 +1,6 @@
 {% extends 'index.html' %}
 
 {% block main %}
-
 <div class="container mt-4">
     <h2 class="text-center mb-4 text-primary"><b>Consultar Cliente</b></h2>
 
@@ -30,16 +29,18 @@
                 {{ buscador_Cliente.fecha }}
             </div>
 
+            <div class="col-md-4">
+                {{ buscador_Cliente.estado.label_tag }}
+                {{ buscador_Cliente.estado }}
+            </div>
+
             <div class="col-md-2">
                 <button type="submit" name="buscar_cliente" value="Buscar cliente" class="btn btn-primary w-100 mb-2">
                     <i class="fas fa-search"></i> Buscar
                 </button>
             </div>
 
-            <div class="col-md-2">
-                <!-- Si quieres agregar botón exportar PDF, lo puedes poner aquí -->
-            </div>
-
+            
         </div>
     </form>
 
@@ -53,6 +54,7 @@
                     <th>Cédula</th>
                     <th>Correo</th>
                     <th>Teléfono</th>
+                    <th>Estado</th>
                     <th>Modificar</th>
                     <th>Eliminar</th>
                 </tr>
@@ -67,12 +69,20 @@
                         <td>{{ c.correo }}</td>
                         <td>{{ c.telefono }}</td>
                         <td class="text-center">
+                            {% if c.estado %}
+                                <span class="badge bg-success">Activo</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
                             <a href="{% url 'modificar_cliente' c.id %}" class="btn btn-info btn-sm">
                                 <i class="fas fa-edit"></i> Modificar
                             </a>
                         </td>
                         <td class="text-center">
-                            <a href="{% url 'eliminar_cliente' c.id %}" class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Estás seguro de eliminar este cliente?');">
+                            <a href="{% url 'eliminar_cliente' c.id %}" class="btn btn-outline-danger btn-sm"
+                               onclick="return confirm('¿Estás seguro de eliminar este cliente?');">
                                 <i class="fas fa-trash-alt"></i> Eliminar
                             </a>
                         </td>
@@ -80,13 +90,11 @@
                     {% endfor %}
                 {% else %}
                     <tr>
-                        <td colspan="7" class="text-center">No hay clientes para mostrar.</td>
+                        <td colspan="8" class="text-center">No hay clientes para mostrar.</td>
                     </tr>
                 {% endif %}
             </tbody>
         </table>
     </div>
-
 </div>
-
 {% endblock %}

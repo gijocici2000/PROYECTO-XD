@@ -1,108 +1,73 @@
 {% extends 'index.html' %}
-
 {% block main %}
-<div class="container mt-4">
-  <h2>Crear Compra</h2>
+<div class="container mt-4 text-light">
+  <h2 class="text-center mb-4 text-primary"><b>Registrar Compra</b></h2>
 
-  {% if messages %}
-    {% for message in messages %}
-      <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-    {% endfor %}
-  {% endif %}
-
-  <form method="post" id="compraForm">
+  <form method="post" action="{% url 'crear_compra' %}" class="w-50 mx-auto p-4 rounded"
+        style="background-color: #308a9e; border: 1px solid #333;">
     {% csrf_token %}
 
-    <!-- Datos generales -->
     <div class="mb-3">
       <label for="id_proveedor" class="form-label">Proveedor</label>
-      <select name="proveedor" id="id_proveedor" class="form-control" required>
-        <option value="">Seleccione un proveedor</option>
-        {% for proveedor in proveedores %}
-          <option value="{{ proveedor.id }}">{{ proveedor.nombre }}</option>
-        {% endfor %}
-      </select>
+      <div class="d-flex gap-2 align-items-center">
+        {{ form.proveedor }}
+        <a href="{% url 'crear_proveedor' %}" class="btn btn-outline-light" title="Crear nuevo proveedor" target="_blank" rel="noopener noreferrer">
+          <i class="bi bi-plus-circle fs-4"></i>
+        </a>
+      </div>
     </div>
 
     <div class="mb-3">
-      <label for="fecha_compra" class="form-label">Fecha de Compra</label>
-      <input type="date" name="fecha_compra" id="fecha_compra" class="form-control" />
+      <label for="id_fecha_compra" class="form-label">Fecha de Compra</label>
+      {{ form.fecha_compra }}
     </div>
 
     <div class="mb-3">
-      <label for="numero_factura" class="form-label">Número de Factura</label>
-      <input type="text" name="numero_factura" id="numero_factura" class="form-control" />
+      <label for="id_numero_factura" class="form-label">Número de Factura</label>
+      {{ form.numero_factura }}
     </div>
 
-    <hr/>
+    <div class="mb-3">
+      <label for="id_subtotal" class="form-label">Subtotal</label>
+      {{ form.subtotal }}
+    </div>
 
-    <!-- Detalles productos -->
-    <h4>Productos</h4>
-    <table class="table" id="productosTable">
-      <thead>
-        <tr>
-          <th>Producto</th>
-          <th>Cantidad</th>
-          <th>Precio Unitario</th>
-          <th><button type="button" class="btn btn-success btn-sm" id="agregarProducto">+</button></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>
-            <select name="producto" class="form-select" required>
-              <option value="">Seleccione un producto</option>
-              {% for producto in productos %}
-                <option value="{{ producto.id }}">{{ producto.nombre }}</option>
-              {% endfor %}
-            </select>
-          </td>
-          <td><input type="number" name="cantidad" min="1" class="form-control" required /></td>
-          <td><input type="number" name="precio" min="0" step="0.01" class="form-control" required /></td>
-          <td><button type="button" class="btn btn-danger btn-sm eliminarFila">-</button></td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="mb-3">
+      <label for="id_iva" class="form-label">IVA</label>
+      {{ form.iva }}
+    </div>
 
-    <button type="submit" class="btn btn-primary">Guardar Compra</button>
+    <div class="mb-3">
+      <label for="id_total" class="form-label">Total</label>
+      {{ form.total }}
+    </div>
+
+    <div class="text-center">
+      <button type="submit" class="btn btn-success fw-bold">Guardar Compra</button>
+    </div>
   </form>
 </div>
 
 <script>
-  // Script para agregar y eliminar filas dinámicamente
-  document.getElementById('agregarProducto').addEventListener('click', function() {
-    const tabla = document.getElementById('productosTable').getElementsByTagName('tbody')[0];
-    const fila = tabla.rows[0].cloneNode(true);
+  function calcularTotal() {
+    const subtotalInput = document.getElementById('id_subtotal');
+    const ivaInput = document.getElementById('id_iva');
+    const totalInput = document.getElementById('id_total');
 
-    // Limpiar valores de inputs/select
-    fila.querySelectorAll('select, input').forEach(function(input) {
-      input.value = '';
-    });
+    let subtotal = parseFloat(subtotalInput.value) || 0;
+    let iva = parseFloat(ivaInput.value) || 0;
 
-    tabla.appendChild(fila);
-  });
+    totalInput.value = (subtotal + iva).toFixed(2);
+  }
 
-  // Delegación para eliminar filas
-  document.getElementById('productosTable').addEventListener('click', function(e) {
-    if (e.target.classList.contains('eliminarFila')) {
-      const tbody = e.target.closest('tbody');
-      if (tbody.rows.length > 1) {
-        e.target.closest('tr').remove();
-      } else {
-        alert('Debe haber al menos un producto.');
-      }
-    }
-  });
+  document.addEventListener('DOMContentLoaded', () => {
+    const subtotalInput = document.getElementById('id_subtotal');
+    const ivaInput = document.getElementById('id_iva');
 
-  // Para que los inputs se envíen como listas al backend, debemos modificar los names
-  // al enviar el formulario
-  document.getElementById('compraForm').addEventListener('submit', function() {
-    const filas = document.querySelectorAll('#productosTable tbody tr');
-    filas.forEach(function(fila, index) {
-      fila.querySelector('select[name="producto"]').setAttribute('name', 'producto');
-      fila.querySelector('input[name="cantidad"]').setAttribute('name', 'cantidad');
-      fila.querySelector('input[name="precio"]').setAttribute('name', 'precio');
-    });
+    subtotalInput.addEventListener('input', calcularTotal);
+    ivaInput.addEventListener('input', calcularTotal);
+
+    calcularTotal();
   });
 </script>
 {% endblock %}

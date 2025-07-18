@@ -1,0 +1,16 @@
+{% extends "index.html" %}
+
+{% block main %}
+<div class="container mt-4">
+  <div class="alert alert-warning text-center">
+    <h4><i class="bi bi-exclamation-triangle-fill"></i> ¿Estás seguro de que deseas <b>anular</b> esta compra?</h4>
+    <p>Esta acción marcará la compra como anulada, pero no la eliminará del sistema.</p>
+
+    <form method="post">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Anular Compra</button>
+      <a href="{% url 'consultar_compra' %}" class="btn btn-secondary">Cancelar</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

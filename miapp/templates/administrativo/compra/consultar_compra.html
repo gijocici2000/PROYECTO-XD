@@ -2,37 +2,86 @@
 
 {% block main %}
 <div class="container mt-4">
-  <h2>Detalle Compra: {{ compra.numero_factura }}</h2>
+    <h2 class="text-center mb-4 text-primary"><b>Consultar Compras</b></h2>
 
-  <p><strong>Proveedor:</strong> {{ compra.proveedor.nombre }}</p>
-  <p><strong>Fecha:</strong> {{ compra.fecha_compra|date:"d/m/Y" }}</p>
-  <p><strong>Subtotal:</strong> ${{ compra.subtotal }}</p>
-  <p><strong>IVA:</strong> ${{ compra.iva }}</p>
-  <p><strong>Total:</strong> ${{ compra.total }}</p>
+    <!-- Formulario de búsqueda -->
+    <form method="post" action="{% url 'consultar_compra' %}" class="mb-4">
+        {% csrf_token %}
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                {{ buscador_compra.proveedor.label_tag }}
+                {{ buscador_compra.proveedor }}
+            </div>
+            <div class="col-md-3">
+                {{ buscador_compra.numero_factura.label_tag }}
+                {{ buscador_compra.numero_factura }}
+            </div>
+            <div class="col-md-3">
+                {{ buscador_compra.fecha_inicio.label_tag }}
+                {{ buscador_compra.fecha_inicio }}
+            </div>
+            <div class="col-md-3">
+                {{ buscador_compra.fecha_fin.label_tag }}
+                {{ buscador_compra.fecha_fin }}
+            </div>
+            <div class="col-md-12 text-end">
+                <button type="submit" name="buscar_compra" class="btn btn-primary me-2">Buscar</button>
+                <a href="{% url 'consultar_compra' %}" class="btn btn-secondary me-2">Limpiar</a>
 
-  <h4>Productos</h4>
-  <table class="table table-bordered">
-    <thead>
-      <tr>
-        <th>Producto</th>
-        <th>Cantidad</th>
-        <th>Precio Unitario</th>
-        <th>IVA %</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for detalle in detalles %}
-        <tr>
-          <td>{{ detalle.producto.nombre }}</td>
-          <td>{{ detalle.cantidad }}</td>
-          <td>${{ detalle.precio_unitario }}</td>
-          <td>{{ detalle.iva_aplicado }}%</td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+                <!-- Botón Exportar PDF con filtros actuales -->
+                <a href="{% url 'exportar_pdf_compra' %}?
+                    proveedor={{ buscador_compra.proveedor.value|urlencode }}&
+                    numero_factura={{ buscador_compra.numero_factura.value|urlencode }}&
+                    fecha_inicio={{ buscador_compra.fecha_inicio.value|urlencode }}&
+                    fecha_fin={{ buscador_compra.fecha_fin.value|urlencode }}" 
+                   class="btn btn-success">
+                    Exportar Compras Filtradas a PDF
+                </a>
+            </div>
+        </div>
+    </form>
 
-  <a href="{% url 'exportar_pdf_compra' compra.id %}" class="btn btn-primary">Exportar PDF</a>
-  <a href="{% url 'crear_compra' %}" class="btn btn-secondary">Nueva Compra</a>
+    <!-- Resultados -->
+    {% if compras %}
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped align-middle">
+            <thead class="table-dark text-center">
+                <tr>
+                    <th>#</th>
+                    <th>N° Factura</th>
+                    <th>Proveedor</th>
+                    <th>Fecha</th>
+                    <th>Subtotal</th>
+                    <th>IVA</th>
+                    <th>Total</th>
+                    <th>estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody class="text-center">
+                {% for compra in compras %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ compra.numero_factura }}</td>
+                    <td>{{ compra.proveedor.nombre }}</td>
+                    <td>{{ compra.fecha_compra|date:"d/m/Y" }}</td>
+                    <td>{{ compra.subtotal }}</td>
+                    <td>{{ compra.iva }}</td>                                                                                                   
+                    <td>{{ compra.total }}</td>
+                    <td>{{ compra.estado }}</td>
+                    <td>
+                        <a href="{% url 'modificar_compra' compra.id %}" class="btn btn-warning btn-sm">Modificar</a>
+                        <a href="{% url 'anular_compra' compra.id %}" class="btn btn-secondary btn-sm">Anular</a>
+                        <a href="{% url 'eliminar_compra' compra.id %}" class="btn btn-danger btn-sm"
+                           onclick="return confirm('¿Estás seguro de eliminar esta compra?');">Eliminar</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-center text-muted mt-4">No se encontraron compras con los criterios proporcionados.</p>
+    {% endif %}
 </div>
 {% endblock %}

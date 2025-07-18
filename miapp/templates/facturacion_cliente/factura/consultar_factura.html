@@ -2,24 +2,25 @@
 {% load static %}
 
 {% block main %}
-<div class="container my-4">
+<div class="container mt-4">
 
-    <h2 class="mb-4 text-center">Consultar Facturas</h2>
+    <h2 class="text-center mb-4 text-primary">Consultar Facturas</h2>
 
-     <form method="post" class="row g-3 mb-4"  ; border-radius:10px;>
+     <form method="post" class="mb-4">
         {% csrf_token %}
+        <div class="row g-2 align-items-end">
 
-        <div class="col-md-3">
-            <label for="id_cliente_cedula" class="form-label">Cédula Cliente</label>
+        <div class="col-md-4">
+            <label for="id_cliente_cedula" >Cédula Cliente</label>
             {{ buscador_factura.cliente_cedula }}
         </div>
 
-        <div class="col-md-3">
+        <div class="col-md-2">
             <label for="id_desde" class="form-label">Fecha Desde</label>
             {{ buscador_factura.desde }}
         </div>
 
-        <div class="col-md-3">
+        <div class="col-md-2">
             <label for="id_hasta" class="form-label">Fecha Hasta</label>
             {{ buscador_factura.hasta }}
         </div>
@@ -28,6 +29,7 @@
             <button type="submit" name="buscar_factura" class="btn btn-primary w-100 me-2">Buscar</button>
             
         </div>
+    </div>
     </form>
 
     {% if facturas %}

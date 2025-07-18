@@ -10,6 +10,10 @@ from django.contrib.auth.models import User
 # ---------------------------
 
 
+ESTADO_CHOICES = [
+    (1, 'Activo'),
+    (0, 'Inactivo'),
+]
 
 class Sucursal(models.Model):
     nombre = models.CharField(max_length=30)
@@ -23,7 +27,7 @@ class Sucursal(models.Model):
     fecha_modificacion = models.DateTimeField(auto_now=True , )
     creacion_usuario = models.CharField(max_length=50)
     modificacion_usuario = models.CharField(max_length=50)
-    estado = models.IntegerField(default=1)
+    estado = models.IntegerField(choices=ESTADO_CHOICES, default=1)
 
     class Meta:
         db_table = "sucursal"
@@ -45,7 +49,7 @@ class Cargo(models.Model):
     fecha_modificacion = models.DateTimeField(auto_now=True , )
     creacion_usuario = models.CharField(max_length=50)
     modificacion_usuario = models.CharField(max_length=50)
-    estado = models.IntegerField(default=1)
+    estado = models.IntegerField(choices=ESTADO_CHOICES, default=1)
 
     class Meta:
         db_table = "cargo"
@@ -68,7 +72,7 @@ class Empleado(models.Model):
     fecha_modificacion = models.DateTimeField(auto_now=True , )
     creacion_usuario = models.CharField(max_length=50)
     modificacion_usuario = models.CharField(max_length=50)
-    estado = models.IntegerField(default=1)
+    estado = models.IntegerField(choices=ESTADO_CHOICES, default=1)
 
     class Meta:
         db_table = "empleado"
@@ -97,7 +101,7 @@ class Cliente(models.Model):
     fecha_modificacion = models.DateTimeField(auto_now=True , )
     creacion_usuario = models.CharField(max_length=50)
     modificacion_usuario = models.CharField(max_length=50)
-    estado = models.IntegerField(default=1)
+    estado = models.IntegerField(choices=ESTADO_CHOICES, default=1)
 
     class Meta:
         db_table = "cliente"
@@ -198,11 +202,11 @@ class Proveedor(models.Model):
     correo = models.EmailField(max_length=40, default="@")
     direccion = models.CharField(max_length=200, blank=True, null=True)
 
-    fecha_creacion = models.DateTimeField(auto_now_add=True , )
-    fecha_modificacion = models.DateTimeField(auto_now=True , )
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_modificacion = models.DateTimeField(auto_now=True)
     creacion_usuario = models.CharField(max_length=50)
     modificacion_usuario = models.CharField(max_length=50)
-    estado = models.IntegerField(default=1)
+    estado = models.IntegerField(choices=ESTADO_CHOICES, default=1)
 
     class Meta:
         db_table = "proveedor"
@@ -216,33 +220,18 @@ class Proveedor(models.Model):
 class Compra(models.Model):
     proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE)
     fecha_compra = models.DateField()
-    numero_factura = models.CharField(max_length=20)
+    numero_factura = models.CharField(max_length=100)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
     iva = models.DecimalField(max_digits=10, decimal_places=2)
     total = models.DecimalField(max_digits=10, decimal_places=2)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_modificacion = models.DateTimeField(auto_now=True)
+    creacion_usuario = models.CharField(max_length=50)
+    modificacion_usuario = models.CharField(max_length=50)
+    estado = models.IntegerField(choices=ESTADO_CHOICES, default=1)
 
     def __str__(self):
-        return f"Compra {self.numero_factura} - {self.proveedor.nombre}"
-
-
-class DetalleCompra(models.Model):
-    compra = models.ForeignKey(Compra, on_delete=models.CASCADE, related_name="detalles")
-    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
-    cantidad = models.PositiveIntegerField()
-    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
-    iva_aplicado = models.DecimalField(max_digits=5, decimal_places=2)  # Ej: 12.00 para 12%
-
-    def subtotal(self):
-        return self.cantidad * self.precio_unitario
-
-    def valor_iva(self):
-        return self.subtotal() * (self.iva_aplicado / 100)
-
-    def total(self):
-        return self.subtotal() + self.valor_iva()
-
-    def __str__(self):
-        return f"{self.producto.nombre} x {self.cantidad}"
+        return f"{self.numero_factura} - {self.proveedor.nombre}"
 
 
 
@@ -267,7 +256,7 @@ class Descuento(models.Model):
     fecha_modificacion = models.DateTimeField(auto_now=True , )
     creacion_usuario = models.CharField(max_length=50)
     modificacion_usuario = models.CharField(max_length=50)
-    estado = models.IntegerField(default=1)
+    estado = models.IntegerField(choices=ESTADO_CHOICES, default=1)
 
     class Meta:
         db_table = "descuento"
@@ -288,6 +277,10 @@ class Iva(models.Model):
         db_table = "iva"
         verbose_name = "iva"
         verbose_name_plural = "ivas"
+
+
+
+
 
 # ---------------------------
 # COTIZACIÓN Y DETALLES
@@ -361,7 +354,7 @@ class Factura(models.Model):
     fecha_modificacion = models.DateTimeField(auto_now=True)
     creacion_usuario = models.CharField(max_length=50)
     modificacion_usuario = models.CharField(max_length=50)
-    estado = models.IntegerField(default=1)  # 1=Activa, 0=Anulada
+    estado = models.IntegerField(choices=ESTADO_CHOICES, default=1)  # 1=Activa, 0=Anulada
 
     class Meta:
         db_table = "factura"

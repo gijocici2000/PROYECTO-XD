@@ -26,10 +26,13 @@ class EmpleadoForm(forms.ModelForm):
             'cargo': 'Cargo:',
         }
 
+
+
+
 class ClienteForm(forms.ModelForm):
     class Meta:
         model = Cliente
-        fields = ['nombre', 'apellido', 'cedula', 'correo', 'telefono', 'direccion']
+        fields = ['nombre', 'apellido', 'cedula', 'correo', 'telefono', 'direccion', 'estado']
         widgets = {
             'nombre': forms.TextInput(attrs={'class': 'form-control'}),
             'apellido': forms.TextInput(attrs={'class': 'form-control'}),
@@ -37,7 +40,10 @@ class ClienteForm(forms.ModelForm):
             'correo': forms.EmailInput(attrs={'class': 'form-control'}),
             'telefono': forms.TextInput(attrs={'class': 'form-control'}),
             'direccion': forms.TextInput(attrs={'class': 'form-control'}),
+            'estado': forms.Select(attrs={'class': 'form-select', 'choices': ESTADO_CHOICES, 'placeholder': 'Seleccione un estado',
+                                          }),
         }
+
         labels = {
             'nombre': 'Nombre :',
             'apellido': 'Apellido:',
@@ -45,11 +51,31 @@ class ClienteForm(forms.ModelForm):
             'correo': 'Correo electrónico:',
             'telefono': 'Teléfono:',
             'direccion': 'Dirección:',
-        
+            'estado': 'Estado:',
         }
 
 
+class ProveedorForm(forms.ModelForm):
 
+    class Meta:
+        model = Proveedor
+        fields = ['nombre', 'marca', 'ruc', 'correo', 'telefono', 'direccion']
+        widgets = {
+            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'marca': forms.TextInput(attrs={'class': 'form-control'}),
+            'ruc': forms.TextInput(attrs={'class': 'form-control'}),
+            'correo': forms.EmailInput(attrs={'class': 'form-control'}),
+            'telefono': forms.TextInput(attrs={'class': 'form-control'}),
+            'direccion': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+        labels = {
+            'nombre': 'Nombre :',
+            'marca': 'Marca:',
+            'ruc': 'RUC:',
+            'correo': 'Correo electrónico:',
+            'telefono': 'Teléfono:',
+            'direccion': 'Dirección:',
+        }
 
 class ProductoForm(forms.ModelForm):
     cantidad_ingresar = forms.IntegerField(
@@ -155,21 +181,57 @@ class ProductoForm(forms.ModelForm):
 class CompraForm(forms.ModelForm):
     class Meta:
         model = Compra
-        fields = ['proveedor', 'fecha_compra', 'numero_factura']
+        fields = ['proveedor', 'fecha_compra', 'numero_factura', 'subtotal', 'iva', 'total']  # sin estado
+
         widgets = {
-            'fecha_compra': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'proveedor': forms.Select(attrs={'class': 'form-control'}),
+            'fecha_compra': forms.DateInput(attrs={
+                'type': 'date',
+                'class': 'form-control'
+            }),
+            'numero_factura': forms.TextInput(attrs={'class': 'form-control'}),
+            'subtotal': forms.NumberInput(attrs={'class': 'form-control'}),
+            'iva': forms.NumberInput(attrs={'class': 'form-control'}),
+            'total': forms.NumberInput(attrs={'class': 'form-control'}),
         }
 
-class DetalleCompraForm(forms.ModelForm):
-    class Meta:
-        model = DetalleCompra
-        fields = ['producto', 'cantidad', 'precio_unitario', 'iva_aplicado']
-        widgets = {
-            'iva_aplicado': forms.NumberInput(attrs={'placeholder': 'Ej: 12 para 12%'}),
-        }
+class BuscadorCompraForm(forms.Form):
+    proveedor = forms.ModelChoiceField(
+        queryset=Proveedor.objects.all(),
+        label='Proveedor',
+        required=False,
+        empty_label="-- Seleccione proveedor --",
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
 
+    numero_factura = forms.CharField(
+        label='Número de Factura',
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Buscar por N° de Factura'
+        })
+    )
 
+    fecha_inicio = forms.DateField(
+        label='Desde',
+        required=False,
+        widget=forms.DateInput(attrs={
+            'class': 'form-control',
+            'type': 'date'
+        }),
+        input_formats=['%Y-%m-%d'],  # Formato estándar HTML date input
+    )
 
+    fecha_fin = forms.DateField(
+        label='Hasta',
+        required=False,
+        widget=forms.DateInput(attrs={
+            'class': 'form-control',
+            'type': 'date'
+        }),
+        input_formats=['%Y-%m-%d'],
+    )
 
 
 
@@ -224,29 +286,7 @@ FacturaDetalleFormSet = modelformset_factory(
 ##########################Proveedor#########################
 
 
-class ProveedorForm(forms.ModelForm):
-    class Meta:
-        model = Proveedor
-        fields = ['nombre', 'marca', 'ruc', 'correo', 'telefono', 'direccion']
-        widgets = {
-            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
-            'marca': forms.TextInput(attrs={'class': 'form-control'}),
-            'producto': forms.TextInput(attrs={'class': 'form-control'}),
-            'ruc': forms.TextInput(attrs={'class': 'form-control'}),
-            'correo': forms.EmailInput(attrs={'class': 'form-control'}),
-            'telefono': forms.TextInput(attrs={'class': 'form-control'}),
-            'direccion': forms.TextInput(attrs={'class': 'form-control'}),
-        }
-        labels = {
-            'nombre': 'Nombre :',
-            'marca': 'Marca:',
-            'producto': 'Producto:',
-            'ruc': 'RUC:',
-            'correo': 'Correo electrónico:',
-            'telefono': 'Teléfono:',
-            'direccion': 'Dirección:',
-        
-        }
+
 
 class DescuentoForm(forms.ModelForm):
     class Meta:
@@ -428,25 +468,46 @@ class BuscarFacturaDetalleForm(forms.Form):
     )   
 
 
+
+
+ESTADO_CHOICES = [
+    ('', 'Todos'),
+    ('1', 'Activo'),
+    ('0', 'Inactivo'),
+]
+
 class BuscarClienteForm(forms.Form):
     nombre = forms.CharField(max_length=50, required=False)
     apellido = forms.CharField(max_length=50, required=False)
     cedula = forms.CharField(max_length=15, required=False)
+
+    estado = forms.ChoiceField(
+        choices=ESTADO_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
     fecha = forms.DateTimeField(
         required=False,
         widget=forms.DateInput(
             format=('%Y-%m-%d'),
             attrs={
                 'placeholder': 'Seleccione la fecha de creación',
-                'type': 'date'
+                'type': 'date',
+                'class': 'form-control'
             }
         )
     )
+
 
 class BuscarProductoForm(forms.Form):
     nombre = forms.CharField(max_length=20, required=False)
     categoria = forms.CharField(max_length=40, required=False)
     numero_serie = forms.CharField(max_length=20, required=False)
+    estado = forms.ChoiceField(
+        choices=[('', 'Todos'), ('1', 'Activo'), ('0', 'Inactivo')],
+        required=False
+    )
     fecha = forms.DateTimeField(
         required=False,
         widget=forms.DateInput(

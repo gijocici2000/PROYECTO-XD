@@ -2,7 +2,7 @@
 
 {% block main %}
 <div class="container my-4">
-    <!-- Mensajes de éxito u error -->
+    <!-- Mensajes de éxito o error -->
     {% if messages %}
         {% for message in messages %}
             <div class="alert alert-{{ message.tags }} alert-dismissible fade show mt-2" role="alert">
@@ -13,7 +13,7 @@
     {% endif %}
 
     <div class="w-50 mx-auto p-4 rounded" style="background-color: #308a9e; border: 1px solid #333;">
-        <h2 class="text-center text-light mb-4"><b>Modificar Proveedor</b></h2>
+        <h2 class="text-center text-light mb-4"><b>Modificar Compra</b></h2>
 
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
@@ -33,7 +33,7 @@
 
             <div class="d-flex justify-content-between mt-4">
                 <button type="submit" class="btn btn-success px-4">Guardar Cambios</button>
-                <a href="{% url 'consultar_proveedor' %}" class="btn btn-outline-light px-4">Cancelar</a>
+                <a href="{% url 'consultar_compra' %}" class="btn btn-outline-light px-4">Cancelar</a>
             </div>
         </form>
     </div>

@@ -1,26 +1,37 @@
 {% extends 'index.html' %}
 
 {% block main %}
-
 <div class="container mt-4">
     <h2 class="text-center mb-4 text-primary"><b>Consultar Descuento</b></h2>
 
     <!-- Formulario de búsqueda -->
     <form method="post" class="mb-4">
         {% csrf_token %}
-        <div class="row g-2 align-items-end">
-            
-            <div class="col-md-4">{{ buscador_Descuento.producto.label_tag }} {{ buscador_Descuento.producto }} </div>
-            
-            
+        <div class="row g-3 align-items-end">
+
+            <div class="col-md-4">
+                {{ buscador_descuento.producto.label_tag }}
+                {{ buscador_descuento.producto }}
+            </div>
+
+            <div class="col-md-3">
+                {{ buscador_descuento.descuento.label_tag }}
+                {{ buscador_descuento.descuento }}
+            </div>
+
+            <div class="col-md-3">
+                {{ buscador_descuento.fecha.label_tag }}
+                {{ buscador_descuento.fecha }}
+            </div>
+
             <div class="col-md-2">
-                <button type="submit" name="buscar_descuento" value="Buscar descuento" class="btn btn-primary w-100 mb-2">
+                <button type="submit" name="buscar_descuento" value="Buscar descuento" class="btn btn-primary w-100">
                     <i class="fas fa-search"></i> Buscar
                 </button>
             </div>
-            
+
             <div class="col-md-2">
-                <button type="submit" name="exportar_descuento" value="Exportar Pdf" class="btn btn-danger w-100 mb-2">
+                <button type="submit" name="exportar_descuento" value="Exportar Pdf" class="btn btn-danger w-100">
                     <i class="fas fa-file-pdf"></i> PDF
                 </button>
             </div>
@@ -48,8 +59,8 @@
                         <td>{{ d.producto }}</td>
                         <td>{{ d.descripcion }}</td>
                         <td>{{ d.descuento }}</td>
-                        <td>{{ d.fecha_inicio }}</td>
-                        <td>{{ d.fecha_final }}</td>
+                        <td>{{ d.fecha_inicio|date:"Y-m-d" }}</td>
+                        <td>{{ d.fecha_final|date:"Y-m-d" }}</td>
                         <td class="text-center">
                             <a href="{% url 'modificar_descuento' d.id %}" class="btn btn-info btn-sm">
                                 <i class="fas fa-edit"></i> Modificar
@@ -70,7 +81,5 @@
             </tbody>
         </table>
     </div>
-
 </div>
-
 {% endblock %}

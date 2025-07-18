@@ -22,17 +22,15 @@ urlpatterns = [
     path('producto/eliminar/<int:id>/', views.eliminar_producto, name='eliminar_producto'),
     path('producto/exportar/', views.exportar_excel_producto, name='exportar_excel_producto'),
 
-
-    
+    #compra
+    path('compra/crear/', views.crear_compra, name='crear_compra'),
+    path('compra/consultar/', views.consultar_compra, name='consultar_compra'),
+    path('compra/exportar/', views.exportar_pdf_compra, name='exportar_pdf_compra'),
+    path('compra/modificar/<int:id>/', views.modificar_compra, name='modificar_compra'),
+    path('compra/anular/<int:id>/', views.anular_compra, name='anular_compra'),
+    path('compra/eliminar/<int:id>/', views.eliminar_compra, name='eliminar_compra'),
+    path('compra/reporte-sri/', views.reporte_compras_sri, name='reporte_compras_sri'),
    
-
-    
-
-
-
-
-
-
 
     # Descuento
     path('descuento/consultar/', views.consultar_descuento, name='consultar_descuento'),

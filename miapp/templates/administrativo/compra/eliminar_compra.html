@@ -1,0 +1,16 @@
+{% extends "index.html" %}
+
+{% block main %}
+<div class="container mt-4">
+  <div class="alert alert-danger text-center">
+    <h4><i class="bi bi-trash-fill"></i> ¿Estás seguro de que deseas <b>eliminar</b> esta compra?</h4>
+    <p>Esta acción no se puede deshacer.</p>
+
+    <form method="post">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Eliminar Compra</button>
+      <a href="{% url 'consultar_compra' %}" class="btn btn-secondary">Cancelar</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

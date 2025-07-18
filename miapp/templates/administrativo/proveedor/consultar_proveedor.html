@@ -42,10 +42,13 @@
             <thead class="table-primary text-center">
                 <tr>
                     <th>Nombre</th>
+                    <th>Marca</th>
+                    
                     <th>RUC</th>
                     <th>Teléfono</th>
-                    <th>Email</th>
+                    <th>Correo</th>
                     <th>Dirección</th>
+                    <th>Estado</th>
                     <th>Fecha creación</th>
                     <th>Modificar</th>
                     <th>Eliminar</th>
@@ -56,16 +59,26 @@
                     {% for p in proveedores %}
                     <tr>
                         <td>{{ p.nombre }}</td>
+                        <td>{{ p.marca }}</td>
+                        
                         <td>{{ p.ruc }}</td>
                         <td>{{ p.telefono }}</td>
-                        <td>{{ p.email }}</td>
+                        <td>{{ p.correo }}</td>
                         <td>{{ p.direccion }}</td>
-                        <td>{{ p.fecha_creacion }}</td>
+                       <td>
+                            {% if p.estado == 1 %}Activo{% else %}Inactivo{% endif %}
+                        </td> 
+                       
+                        
+                        <td>{{ p.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                        
                         <td class="text-center">
                             <a href="{% url 'modificar_proveedor' p.id %}" class="btn btn-info btn-sm">
                                 <i class="fas fa-edit"></i> Modificar
                             </a>
                         </td>
+
+                        
                         <td class="text-center">
                             <a href="{% url 'eliminar_proveedor' p.id %}" class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Estás seguro de eliminar este proveedor?')">
                                 <i class="fas fa-trash-alt"></i> Eliminar
@@ -75,7 +88,7 @@
                     {% endfor %}
                 {% else %}
                     <tr>
-                        <td colspan="8" class="text-center">No hay proveedores registrados.</td>
+                        <td colspan="13" class="text-center">No hay proveedores registrados.</td>
                     </tr>
                 {% endif %}
             </tbody>

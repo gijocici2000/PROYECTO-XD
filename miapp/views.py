@@ -18,7 +18,7 @@ from django.http import HttpResponse
 from django.urls import reverse
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT,TA_LEFT
 from reportlab.lib.pagesizes import A4, letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
@@ -32,6 +32,12 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from openpyxl import Workbook
 from openpyxl.drawing.image import Image as ExcelImage
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from django.utils.timezone import now
+from datetime import datetime
+from reportlab.pdfbase.pdfmetrics import stringWidth
+
+
+
 #################################login y registro de usuarios##########################################
 
 
@@ -150,6 +156,7 @@ def consultar_empleado(request: HttpRequest) -> HttpResponse:
                     Q(apellido__icontains=apellido) if apellido else Q(),
                     Q(cedula__icontains=cedula) if cedula else Q(),
                     Q(fecha_creacion__lte=fecha) if fecha else Q(),
+                    
                 )
                 context = {'buscador_Empleado': buscarEmpleadoForm, 'empleados': empleados}
                 return render(request, "empleado/consultar_empleado.html", context)
@@ -158,13 +165,15 @@ def consultar_empleado(request: HttpRequest) -> HttpResponse:
     empleados = None
     return render(request, "empleado/consultar_empleado.html", {'buscador_Empleado': buscarEmpleadoForm, 'empleados': empleados})
 @login_required
-@cargo_requerido(['admin', 'Gerente','supervisor'])
+@cargo_requerido(['admin', 'Gerente', 'supervisor'])
 def eliminar_empleado(request: HttpRequest, id: int) -> HttpResponse:
     empleado = get_object_or_404(Empleado, id=id)
     if request.method == "POST":
-        empleado.delete()
+        empleado.estado = 0  # Marcar como inactivo
+        empleado.save()
         return redirect("consultar_empleado")
     return render(request, "empleado/eliminar_empleado.html", {"empleado": empleado})
+
 
 
 
@@ -185,6 +194,7 @@ def crear_cliente(request: HttpRequest) -> HttpResponse:
 @login_required
 @cargo_requerido(['admin', 'gerente', 'cajero', 'supervisor'])
 def consultar_cliente(request: HttpRequest) -> HttpResponse:
+
     buscarClienteForm = BuscarClienteForm(request.POST or None)
 
     # Mostrar todos los clientes por defecto
@@ -195,20 +205,30 @@ def consultar_cliente(request: HttpRequest) -> HttpResponse:
             nombre = buscarClienteForm.cleaned_data.get('nombre', '').strip()
             apellido = buscarClienteForm.cleaned_data.get('apellido', '').strip()
             cedula = buscarClienteForm.cleaned_data.get('cedula', '').strip()
+            estado = buscarClienteForm.cleaned_data.get('estado', '').strip()
 
-            # Aplicar filtros si existen
-            if nombre or apellido or cedula:
-                clientes = clientes.filter(
-                    Q(nombre__icontains=nombre) if nombre else Q(),
-                    Q(apellido__icontains=apellido) if apellido else Q(),
-                    Q(cedula__icontains=cedula) if cedula else Q()
-                )
+            filtros = Q()
+
+            if nombre:
+                filtros &= Q(nombre__icontains=nombre)
+            if apellido:
+                filtros &= Q(apellido__icontains=apellido)
+            if cedula:
+                filtros &= Q(cedula__icontains=cedula)
+            if estado != '':
+                try:
+                    estado_int = int(estado)
+                    filtros &= Q(estado=estado_int)
+                except ValueError:
+                    pass  # Si por alguna razón no es un número válido, ignora el filtro
+
+            clientes = clientes.filter(filtros)
 
     context = {
         'buscador_Cliente': buscarClienteForm,
         'clientes': clientes
     }
-    return render(request, "facturacion_cliente/cliente/consultar_cliente.html", context)
+    return render(request, "facturacion_cliente/cliente/consultar_cliente.html", context)   
 @login_required
 @cargo_requerido(['Admin', 'Gerente','cajero','supervisor'])
 def modificar_cliente(request: HttpRequest, id: int) -> HttpResponse:
@@ -223,14 +243,15 @@ def modificar_cliente(request: HttpRequest, id: int) -> HttpResponse:
     context = {"form": form, "cliente": cliente, "edit_mode": True}
     return render(request, "facturacion_cliente/cliente/modificar_cliente.html", context)
 
-@login_required
-@cargo_requerido(['Admin', 'Gerente'])
-def eliminar_cliente(request: HttpRequest, id: int) -> HttpResponse:
+def eliminar_cliente(request, id):
     cliente = get_object_or_404(Cliente, id=id)
-    if request.method == "POST":
-        cliente.delete()
-        return redirect("consultar_cliente")
-    return render(request, "facturacion_cliente/cliente/eliminar_cliente.html", {"cliente": cliente})
+
+    if request.method == 'POST':
+        cliente.estado = 0  # Marcar como inactivo
+        cliente.save()
+        return redirect('consultar_cliente')
+
+    return render(request, 'facturacion_cliente/cliente/eliminar_cliente.html', {'cliente': cliente})
 
 ############################################ PRODUCTO ########################################
 
@@ -481,14 +502,13 @@ def eliminar_producto(request: HttpRequest, id: int) -> HttpResponse:
 
 ######################################################################
 # Funciones simples para renderizar templates sin lógica adicional
-
-def filtrar_descuentos(nombre: str = '', porcentaje: Optional[float] = None):
-    filtros = Q()
+def filtrar_descuentos(nombre=None, porcentaje=None):
+    descuentos = Descuento.objects.all()
     if nombre:
-        filtros &= Q(nombre__icontains=nombre)
+        descuentos = descuentos.filter(nombre__icontains=nombre)
     if porcentaje is not None:
-        filtros &= Q(porcentaje__gte=porcentaje)
-    return Descuento.objects.filter(filtros)
+        descuentos = descuentos.filter(porcentaje=porcentaje)
+    return descuentos
 
 
 
@@ -513,27 +533,37 @@ def crear_descuento(request: HttpRequest) -> HttpResponse:
         "form": form,
         "edit_mode": False
     })
-
 @login_required
 @cargo_requerido(['admin', 'Gerente', 'supervisor', 'cajero'])
 def consultar_descuento(request: HttpRequest) -> HttpResponse:
-    buscarDescuentoForm = BuscarDescuentoForm(request.POST or None)
+    buscar_descuento_form = BuscarDescuentoForm(request.POST or None)
 
-    # Mostrar todos los descuentos por defecto (al cargar la página)
     descuentos = Descuento.objects.all()
 
     if request.method == "POST":
-        if 'buscar_descuento' in request.POST and buscarDescuentoForm.is_valid():
-            nombre = buscarDescuentoForm.cleaned_data.get('nombre', '').strip()
-            porcentaje = buscarDescuentoForm.cleaned_data.get('porcentaje', None)
+        if 'buscar_descuento' in request.POST and buscar_descuento_form.is_valid():
+            producto = buscar_descuento_form.cleaned_data.get('producto', '').strip()
+            descuento = buscar_descuento_form.cleaned_data.get('descuento', None)
+            fecha = buscar_descuento_form.cleaned_data.get('fecha', None)
 
-            descuentos = filtrar_descuentos(nombre, porcentaje)
+            if producto:
+                descuentos = descuentos.filter(
+                    Q(producto__nombre__icontains=producto) |
+                    Q(producto__numero_serie__icontains=producto)
+                )
+
+            if descuento is not None:
+                descuentos = descuentos.filter(descuento=descuento)
+
+            if fecha:
+                # Filtra por fecha (solo la parte de la fecha, sin hora)
+                descuentos = descuentos.filter(fecha_inicio__date=fecha.date())
 
         elif 'exportar_descuento' in request.POST:
             return exportar_pdf_descuento(request)
 
     return render(request, "facturacion_cliente/descuento/consultar_descuento.html", {
-        'buscador_Descuento': buscarDescuentoForm,
+        'buscador_descuento': buscar_descuento_form,
         'descuentos': descuentos
     })
 
@@ -555,9 +585,11 @@ def exportar_pdf_descuento(request: HttpRequest) -> HttpResponse:
     )
 
     styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name='CenteredTitle', alignment=TA_CENTER, fontSize=16, spaceAfter=12))
+    styles.add(ParagraphStyle(name='CenteredTitle', alignment=TA_CENTER, fontSize=18, leading=22, spaceAfter=15, fontName='Helvetica-Bold'))
     styles.add(ParagraphStyle(name='RightAlign', alignment=TA_RIGHT, fontSize=10))
-
+    styles.add(ParagraphStyle(name='TableHeader', alignment=TA_CENTER, fontSize=11, fontName='Helvetica-Bold', textColor=colors.whitesmoke))
+    styles.add(ParagraphStyle(name='TableCell', alignment=TA_LEFT, fontSize=10, leading=12))
+    
     elementos = []
 
     # Título
@@ -569,30 +601,58 @@ def exportar_pdf_descuento(request: HttpRequest) -> HttpResponse:
     elementos.append(Paragraph(f"Fecha de emisión: {fecha}", styles['RightAlign']))
     elementos.append(Spacer(1, 12))
 
-    # Obtener todos los descuentos
+    # Obtener descuentos
     descuentos = Descuento.objects.all()
 
     if not descuentos.exists():
         elementos.append(Paragraph("No hay descuentos registrados.", styles['Normal']))
     else:
-        headings = ['ID', 'producto', 'descuento (%)']
+        headings = ['ID', 'Producto', 'Descripción', 'Descuento', 'Fecha Inicio', 'Fecha Final', 'Estado']
 
-        # ⚠️ Asegúrate que tu modelo tenga el campo "nombre"
-        datos = [[d.pk, d.producto, f"{d.descuento:.2f} ,"] for d in descuentos]
+        datos = []
+        for d in descuentos:
+            estado_texto = dict(Descuento.ESTADO_CHOICES).get(d.estado, "Desconocido") if hasattr(Descuento, 'ESTADO_CHOICES') else str(d.estado)
+            datos.append([
+                str(d.pk),
+                getattr(d.producto, 'nombre', str(d.producto)),
+                d.descripcion or '-',
+                f"{d.descuento:.2f}",
+                d.fecha_inicio.strftime("%d/%m/%Y"),
+                d.fecha_final.strftime("%d/%m/%Y"),
+                estado_texto
+            ])
 
-        tabla = Table([headings] + datos, colWidths=[50, 250, 100])
+        # Construir tabla con encabezados y datos
+        tabla = Table([headings] + datos, colWidths=[40, 100, 140, 70, 70, 70, 60])
         tabla.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#308a9e")),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#2E86C1")),  # Azul oscuro para encabezado
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 12),
+
+            ('BACKGROUND', (0, 1), (-1, -1), colors.whitesmoke),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 1), (-1, -1), 10),
+            ('ALIGN', (3, 1), (3, -1), 'RIGHT'),  # Descuento a la derecha
+            ('ALIGN', (0, 1), (0, -1), 'CENTER'),  # ID centrado
+
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.lightgrey]),
         ]))
         elementos.append(tabla)
 
-    doc.build(elementos)
+    # Pie de página con número de página
+    def agregar_pie(canvas, doc):
+        canvas.saveState()
+        footer_text = f"Página {doc.page}"
+        canvas.setFont('Helvetica', 8)
+        width, height = A4
+        canvas.drawRightString(width - inch / 2, 0.75 * inch, footer_text)
+        canvas.restoreState()
+
+    doc.build(elementos, onFirstPage=agregar_pie, onLaterPages=agregar_pie)
     pdf = buffer.getvalue()
     buffer.close()
     response.write(pdf)
@@ -638,12 +698,20 @@ def crear_proveedor(request: HttpRequest) -> HttpResponse:
     context = {"form_Proveedor": form, "edit_mode": False}
     return render(request, "administrativo/proveedor/crear_proveedor.html", context)
 
+
+
 @login_required
 @cargo_requerido(['admin', 'Gerente', 'supervisor', 'cajero'])
-def consultar_proveedor(request: HttpRequest) -> HttpResponse:
-    buscarProveedorForm = BuscarProveedorForm(request.POST or None)
+def consultar_proveedor(request):
+    # ✅ Si es una petición AJAX (desde Select2)
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        termino = request.GET.get('q', '').strip()
+        proveedores = Proveedor.objects.filter(nombre__icontains=termino)[:10]
+        resultados = [{'id': p.pk, 'text': p.nombre} for p in proveedores]
+        return JsonResponse({'results': resultados})
 
-    # Mostrar todos los proveedores por defecto
+    # ✅ Si es una petición normal (navegador)
+    buscarProveedorForm = BuscarProveedorForm(request.POST or None)
     proveedores = Proveedor.objects.all()
 
     if request.method == "POST":
@@ -672,54 +740,85 @@ def consultar_proveedor(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@cargo_requerido(['admin', 'Gerente','supervisor'])        
+@cargo_requerido(['admin', 'Gerente', 'supervisor'])
 def exportar_pdf_proveedor(request: HttpRequest) -> HttpResponse:
-        response = HttpResponse(content_type="application/pdf")
-        response["Content-Disposition"] = 'attachment; filename="consultar_proveedor.pdf"'
-        buffer = io.BytesIO()
-        doc = SimpleDocTemplate(
-            buffer,
-            rightMargin=inch / 4,
-            leftMargin=inch / 4,
-            topMargin=inch / 2,
-            bottomMargin=inch / 4,
-            pagesize=A4
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = 'attachment; filename="consultar_proveedor.pdf"'
+    
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        rightMargin=inch / 2,
+        leftMargin=inch / 2,
+        topMargin=inch,
+        bottomMargin=inch / 2,
+        pagesize=A4
+    )
+
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(name='CenteredTitle', alignment=TA_CENTER, fontSize=16, spaceAfter=10))
+    styles.add(ParagraphStyle(name='RightAlign', alignment=TA_RIGHT, fontSize=10))
+
+    elementos = []
+
+    # Encabezado
+    elementos.append(Paragraph("Sistema de Gestión de Proveedores", styles['CenteredTitle']))
+    elementos.append(Paragraph("Listado de Proveedores", styles['Title']))
+    elementos.append(Paragraph(f"Fecha: {now().strftime('%d/%m/%Y %H:%M')}", styles['RightAlign']))
+    elementos.append(Spacer(1, 12))
+
+    # Filtro de datos si hay formulario
+    buscarProveedorForm = BuscarProveedorForm(request.POST or None)
+    if buscarProveedorForm.is_valid():
+        nombre = buscarProveedorForm.cleaned_data.get('nombre', '')
+        ruc = buscarProveedorForm.cleaned_data.get('ruc', '')
+        fecha = buscarProveedorForm.cleaned_data.get('fecha')
+
+        proveedores = Proveedor.objects.filter(
+            Q(nombre__icontains=nombre) if nombre else Q(),
+            Q(ruc__icontains=ruc) if ruc else Q(),
+            Q(fecha_creacion__lte=fecha) if fecha else Q(),
         )
-        styles = getSampleStyleSheet()
-        styles.add(ParagraphStyle(name='centered', alignment=TA_CENTER))
-        styles.add(ParagraphStyle(name='RightAlign', alignment=TA_RIGHT))
+    else:
+        proveedores = Proveedor.objects.all()
 
-        lista_proveedor = []
-        header = Paragraph("Listado de Proveedores", styles['Heading1'])
-        lista_proveedor.append(header)
+    # Cabecera de la tabla
+    encabezado = [
+        'ID', 'Nombre', 'Marca', 'RUC', 'Teléfono', 'Correo', 'Dirección', 'Estado', 'F. Creación'
+    ]
+    datos = [encabezado]
 
-        buscarProveedorForm = BuscarProveedorForm(request.POST)
-        if buscarProveedorForm.is_valid():
-            nombre = buscarProveedorForm.cleaned_data.get('nombre', '')
-            ruc = buscarProveedorForm.cleaned_data.get('ruc', '')
-            fecha = buscarProveedorForm.cleaned_data.get('fecha', None)
+    for p in proveedores:
+        datos.append([
+            p.pk,
+            p.nombre,
+            p.marca,
+            p.ruc,
+            p.telefono,
+            p.correo,
+            p.direccion,
+            "Activo" if p.estado == 1 else "Inactivo",
+            p.fecha_creacion.strftime("%d/%m/%Y %H:%M"),
+        ])
 
-            proveedores = Proveedor.objects.filter(
-                Q(nombre__icontains=nombre) if nombre else Q(),
-                Q(ruc__icontains=ruc) if ruc else Q(),
-                Q(fecha_creacion__lte=fecha) if fecha else Q(),
-            )
-            headings = ('Id', 'Nombre', 'RUC', 'Teléfono', 'Correo')
-            allproveedores = [(p.pk, p.nombre, p.ruc, p.telefono, p.correo) for p in proveedores]
+    tabla = Table(datos, colWidths=[40, 70, 60, 70, 60, 100, 80, 50, 80])
+    tabla.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.lightgrey]),
+    ]))
 
-            t = Table([headings] + allproveedores)
-            t.setStyle(TableStyle([
-                ('GRID', (0, 0), (-1, -1), 1, colors.springgreen),
-                ('LINEBELOW', (0, 0), (-1, 0), 2, colors.springgreen),
-                ('BACKGROUND', (0, 0), (-1, 0), colors.springgreen),
-            ]))
-            lista_proveedor.append(t)
-
-        doc.build(lista_proveedor)
-        response.write(buffer.getvalue())
-        buffer.close()
-        return response
-
+    elementos.append(tabla)
+    doc.build(elementos)
+    
+    response.write(buffer.getvalue())
+    buffer.close()
+    return response
    
 @login_required
 @cargo_requerido(['admin', 'Gerente','supervisor'])
@@ -1364,8 +1463,7 @@ def exportar_pdf_factura(request, factura_id):
     p.drawString(RIGHT_X, TOP - 45, getattr(factura, 'numero_autorizacion', '000000000000000'))
     p.setFont("Helvetica", 9)
     p.drawString(RIGHT_X, TOP - 60, f"Fecha Emisión: {factura.fecha_emision.strftime('%d/%m/%Y')}")
-    if factura.fecha_pago_limite:
-        p.drawString(RIGHT_X, TOP - 75, f"Fecha Máx. de Pago: {factura.fecha_pago_limite.strftime('%d/%m/%Y')}")
+    
 
     p.line(MARGIN, TOP - 135, width - MARGIN, TOP - 135)
 
@@ -1674,3 +1772,272 @@ def eliminar_factura(request, id):
 #     }
 
 #     return render(request, 'facturacion_cliente/factura/crear_factura.html', context)
+
+@login_required
+@cargo_requerido(['admin', 'Gerente', 'supervisor', 'cajero'])
+def crear_compra(request):
+    if request.method == 'POST':
+        form = CompraForm(request.POST)
+        if form.is_valid():
+            compra = form.save(commit=False)
+            compra.estado = 1  # por ejemplo, 1 para activo
+            compra.save()
+            messages.success(request, "Compra registrada exitosamente.")
+            return redirect('consultar_compra')
+    else:
+        form = CompraForm()
+
+    return render(request, 'administrativo/compra/crear_compra.html', {'form': form})
+
+
+
+
+
+
+@login_required
+@cargo_requerido(['admin', 'Gerente', 'supervisor', 'cajero'])
+def consultar_compra(request):
+    compras = Compra.objects.all()
+    
+    if request.method == 'POST':
+        buscador_compra = BuscadorCompraForm(request.POST)
+        if buscador_compra.is_valid():
+            proveedor = buscador_compra.cleaned_data.get('proveedor')
+            numero_factura = buscador_compra.cleaned_data.get('numero_factura')
+            fecha_inicio = buscador_compra.cleaned_data.get('fecha_inicio')
+            fecha_fin = buscador_compra.cleaned_data.get('fecha_fin')
+
+            if proveedor:
+                compras = compras.filter(proveedor=proveedor)
+            if numero_factura:
+                compras = compras.filter(numero_factura__icontains=numero_factura)
+            if fecha_inicio:
+                compras = compras.filter(fecha_compra__gte=fecha_inicio)
+            if fecha_fin:
+                compras = compras.filter(fecha_compra__lte=fecha_fin)
+    else:
+        buscador_compra = BuscadorCompraForm()
+
+    return render(request, 'administrativo/compra/consultar_compra.html', {
+        'compras': compras,
+        'buscador_compra': buscador_compra,
+    })
+
+
+@login_required
+@cargo_requerido(['admin', 'Gerente', 'supervisor'])
+def modificar_compra(request, id):
+    compra = get_object_or_404(Compra, id=id)
+
+    if request.method == 'POST':
+        form = CompraForm(request.POST, instance=compra)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Compra modificada exitosamente.')
+            return redirect('consultar_compra')
+    else:
+        form = CompraForm(instance=compra)
+
+    context = {
+        'form': form,
+        'compra': compra,
+        'edit_mode': True,
+    }
+    return render(request, 'administrativo/compra/modificar_compra.html', context)
+ 
+@login_required
+@cargo_requerido(['admin', 'Gerente', 'supervisor'])
+def anular_compra(request, id):
+    compra = get_object_or_404(Compra, id=id)
+    
+    if request.method == 'POST':
+        compra.estado = False  # o 0
+        compra.save()
+        messages.success(request, 'La compra ha sido anulada correctamente.')
+        return redirect('consultar_compra')
+
+    return render(request, 'administrativo/compra/anular_compra.html', {'compra': compra})
+
+@login_required
+@cargo_requerido(['admin', 'Gerente'])
+def eliminar_compra(request, id):
+    compra = get_object_or_404(Compra, id=id)
+    compra.delete()
+    messages.error(request, 'Compra eliminada permanentemente.')
+    return redirect('consultar_compra')
+
+
+
+def ajustar_y_centrar_texto(canvas, texto, x_centro, y, max_width, font_name="Helvetica", font_size=10, min_size=6):
+    texto = str(texto)
+    actual_size = font_size
+    while stringWidth(texto, font_name, actual_size) > max_width and actual_size > min_size:
+        actual_size -= 0.5
+    canvas.setFont(font_name, actual_size)
+    canvas.drawCentredString(x_centro, y, texto)
+    canvas.setFont(font_name, font_size)  # Restaurar tamaño original
+
+@login_required
+@cargo_requerido(['admin', 'Gerente', 'supervisor'])
+def exportar_pdf_compra(request):
+    proveedor_id = request.GET.get('proveedor')
+    numero_factura = request.GET.get('numero_factura')
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+
+    compras = Compra.objects.all()
+
+    if proveedor_id:
+        compras = compras.filter(proveedor_id=proveedor_id)
+    if numero_factura:
+        compras = compras.filter(numero_factura__icontains=numero_factura)
+    if fecha_inicio:
+        compras = compras.filter(fecha_compra__gte=fecha_inicio)
+    if fecha_fin:
+        compras = compras.filter(fecha_compra__lte=fecha_fin)
+
+    total_iva = compras.aggregate(total_iva=Sum('iva'))['total_iva'] or 0
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="compras_filtradas.pdf"'
+
+    c = canvas.Canvas(response, pagesize=letter) # type: ignore
+    width, height = letter
+    margin = 0.75 * inch
+    y = height - margin
+
+    # Título centrado
+    c.setFont("Helvetica-Bold", 18)
+    c.drawCentredString(width / 2, y, "Reporte de Compras Filtradas")
+    y -= 0.4 * inch
+
+    # Fecha y filtros
+    c.setFont("Helvetica", 10)
+    fecha_hoy = datetime.now().strftime('%d/%m/%Y %H:%M')
+    c.drawString(margin, y, f"Fecha de generación: {fecha_hoy}")
+    y -= 0.25 * inch
+
+    filtros_aplicados = []
+    if proveedor_id:
+        proveedor_nombre = compras.first().proveedor.nombre if compras.exists() else "N/A" # type: ignore
+        filtros_aplicados.append(f"Proveedor: {proveedor_nombre}")
+    if numero_factura:
+        filtros_aplicados.append(f"N° Factura contiene: '{numero_factura}'")
+    if fecha_inicio:
+        filtros_aplicados.append(f"Desde: {fecha_inicio}")
+    if fecha_fin:
+        filtros_aplicados.append(f"Hasta: {fecha_fin}")
+
+    filtros_text = "Filtros aplicados: " + (", ".join(filtros_aplicados) if filtros_aplicados else "Ninguno")
+    c.drawString(margin, y, filtros_text)
+    y -= 0.5 * inch
+
+    # Definir columnas
+    headers = ["N° Factura", "Proveedor", "Fecha", "Subtotal", "IVA", "Total"]
+    col_widths = [1.2*inch, 1.2*inch, 1.2*inch, 1.2*inch, 1.2*inch, 1.2*inch]
+    col_positions = [margin]
+    for w in col_widths[:-1]:
+        col_positions.append(col_positions[-1] + w)
+
+    # Encabezado con fondo gris
+    header_height = 0.3 * inch
+    c.setFillColorRGB(0.9, 0.9, 0.9)
+    c.rect(margin - 3, y - header_height + 5, sum(col_widths) + 6, header_height, fill=1, stroke=0)
+    c.setFillColor(colors.black)
+    c.setFont("Helvetica-Bold", 12)
+    for i, header in enumerate(headers):
+        x_center = col_positions[i] + col_widths[i] / 2
+        c.drawCentredString(x_center, y - 0.2*inch, header)
+    y -= header_height + 2
+
+    # Línea bajo encabezado
+    c.setLineWidth(1)
+    c.line(margin - 3, y + 5, margin - 3 + sum(col_widths) + 6, y + 5)
+    y -= 0.1 * inch
+
+    c.setFont("Helvetica", 10)
+    line_height = 0.25 * inch
+
+    for compra in compras:
+        if y < margin + line_height + 50:
+            c.showPage()
+            y = height - margin
+
+            # Repetir encabezados
+            c.setFillColorRGB(0.9, 0.9, 0.9)
+            c.rect(margin - 3, y - header_height + 5, sum(col_widths) + 6, header_height, fill=1, stroke=0)
+            c.setFillColor(colors.black)
+            c.setFont("Helvetica-Bold", 12)
+            for i, header in enumerate(headers):
+                x_center = col_positions[i] + col_widths[i] / 2
+                c.drawCentredString(x_center, y - 0.2*inch, header)
+            y -= header_height + 2
+            c.setLineWidth(1)
+            c.line(margin - 3, y + 5, margin - 3 + sum(col_widths) + 6, y + 5)
+            y -= 0.1 * inch
+            c.setFont("Helvetica", 10)
+
+        # Datos de la fila
+        c.drawCentredString(col_positions[0] + col_widths[0]/2, y, compra.numero_factura)
+
+        # Proveedor con ajuste automático
+        x_centro_proveedor = col_positions[1] + col_widths[1] / 2
+        max_prov_width = col_widths[1] - 8
+        ajustar_y_centrar_texto(c, compra.proveedor.nombre, x_centro_proveedor, y, max_prov_width)
+
+        c.drawCentredString(col_positions[2] + col_widths[2]/2, y, compra.fecha_compra.strftime('%d/%m/%Y'))
+        c.drawRightString(col_positions[3] + col_widths[3] - 2, y, f"{compra.subtotal:.2f}")
+        c.drawRightString(col_positions[4] + col_widths[4] - 2, y, f"{compra.iva:.2f}")
+        c.drawRightString(col_positions[5] + col_widths[5] - 2, y, f"{compra.total:.2f}")
+        y -= line_height
+
+    # Línea final
+    y -= 0.2 * inch
+    c.setLineWidth(1)
+    c.line(margin - 3, y + 5, margin - 3 + sum(col_widths) + 6, y + 5)
+    y -= 0.4 * inch
+
+    # Total IVA pagado alineado a la derecha
+    c.setFont("Helvetica-Bold", 12)
+    total_text = f"Total IVA pagado: ${total_iva:.2f}"
+    c.drawRightString(margin - 3 + sum(col_widths), y, total_text)
+
+    c.showPage()
+    c.save()
+
+    return response
+
+@login_required
+@cargo_requerido('admin' )
+def reporte_compras_sri(request):
+    # Valores por defecto al mes y año actual
+    hoy = timezone.now()
+    mes = request.GET.get('mes', str(hoy.month))
+    anio = request.GET.get('anio', str(hoy.year))
+
+    # Filtrar compras por mes y año
+    compras = Compra.objects.filter(
+        fecha_compra__year=anio,
+        fecha_compra__month=mes
+    ).order_by('fecha_compra')
+
+    resumen = compras.aggregate(
+        subtotal=Sum('subtotal'),
+        iva=Sum('iva'),
+        total=Sum('total')
+    )
+
+    # Si no hay compras, evitar None en el template
+    resumen = {
+        'subtotal': resumen['subtotal'] or 0,
+        'iva': resumen['iva'] or 0,
+        'total': resumen['total'] or 0,
+    }
+
+    context = {
+        'compras': compras,
+        'mes': int(mes),
+        'anio': int(anio),
+        'resumen': resumen,
+    }
+    return render(request, 'administrativo/compra/reporte_sri.html', context)
