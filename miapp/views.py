@@ -35,7 +35,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from django.utils.timezone import now
 from datetime import datetime
 from reportlab.pdfbase.pdfmetrics import stringWidth
-
+from reportlab.lib.utils import simpleSplit
 
 
 #################################login y registro de usuarios##########################################
@@ -96,7 +96,7 @@ def login_view(request):
         if form.is_valid():
             user = form.get_user()
             login(request, user)
-            return redirect('index')  # O donde quieras después del login
+            return redirect('index')  
         else:
             messages.error(request, 'Usuario o contraseña incorrectos.')
     else:
@@ -1009,14 +1009,14 @@ def consultar_cotizacion(request, id=None):
 
 
 @login_required
-@cargo_requerido(['admin', 'Gerente', 'cajero','supervisor' ])
+@cargo_requerido(['admin', 'Gerente', 'cajero', 'supervisor'])
 def exportar_pdf_cotizacion(request, cotizacion_id):
     try:
         cotizacion = Cotizacion.objects.get(pk=cotizacion_id)
     except Cotizacion.DoesNotExist:
         return HttpResponse("Cotización no encontrada.", status=404)
 
-    detalles = cotizacion.detalles.all() # type: ignore
+    detalles = cotizacion.detalles.all()  # type: ignore
     sucursal = cotizacion.sucursal
 
     buffer = io.BytesIO()
@@ -1024,31 +1024,35 @@ def exportar_pdf_cotizacion(request, cotizacion_id):
     width, height = letter
     y = height - 50
 
-    p.setFont("Helvetica-Bold", 14)
-    p.drawString(50, y, f"Reporte de Cotización #{cotizacion.numero_cotizacion or cotizacion.id}")
-    y -= 30
+    def dibujar_encabezado():
+        nonlocal y
+        p.setFont("Helvetica-Bold", 14)
+        p.drawString(50, y, f"Reporte de Cotización #{cotizacion.numero_cotizacion or cotizacion.id}")
+        y -= 30
 
-    # Info general
-    p.setFont("Helvetica", 10)
-    p.drawString(50, y, f"Sucursal: {sucursal.nombre}")
-    y -= 20
-    p.drawString(50, y, f"Fecha emisión: {cotizacion.fecha_emision.strftime('%d/%m/%Y')}")
-    y -= 20
-    p.drawString(50, y, f"Cliente: {cotizacion.cliente.nombre}")
-    y -= 30
+        p.setFont("Helvetica", 10)
+        p.drawString(50, y, f"Sucursal: {sucursal.nombre}")
+        y -= 20
+        p.drawString(50, y, f"Fecha emisión: {cotizacion.fecha_emision.strftime('%d/%m/%Y')}")
+        y -= 20
+        p.drawString(50, y, f"Cliente: {cotizacion.cliente.nombre}")
+        y -= 30
 
-    # Encabezados
-    p.setFont("Helvetica-Bold", 9)
-    p.drawString(50, y, "Producto")
-    p.drawString(160, y, "Cant.")
-    p.drawString(200, y, "P. Unit")
-    p.drawString(270, y, "Desc.")
-    p.drawString(320, y, "IVA %")
-    p.drawString(380, y, "Subtotal")
-    p.drawString(470, y, "Total")
-    y -= 20
+        # Encabezado de la tabla
+        p.setFont("Helvetica-Bold", 9)
+        p.drawString(50, y, "Producto")
+        p.drawString(160, y, "Cant.")
+        p.drawString(200, y, "P. Unit")
+        p.drawString(270, y, "Desc.")
+        p.drawString(320, y, "IVA %")
+        p.drawString(380, y, "Subtotal")
+        p.drawString(470, y, "Total")
+        y -= 20
+
+    dibujar_encabezado()
 
     total_general = Decimal('0.00')
+
     for d in detalles:
         producto = d.producto.nombre
         cantidad = d.cantidad_producto
@@ -1056,36 +1060,57 @@ def exportar_pdf_cotizacion(request, cotizacion_id):
         descuento = d.descuento_total or Decimal('0.00')
         iva_porcentaje = d.iva.porcentaje if d.iva else Decimal('0.00')
 
+        # Cálculos
         subtotal = cantidad * precio
-        subtotal_desc = subtotal - descuento
-        iva_valor = subtotal_desc * (iva_porcentaje / 100)
+        subtotal_desc = subtotal 
+        iva_valor = subtotal_desc * (iva_porcentaje / Decimal('100'))
         total = subtotal_desc + iva_valor
         total_general += total
 
+        # Ajuste para nombres largos
         p.setFont("Helvetica", 9)
-        p.drawString(50, y, producto[:20])
-        p.drawString(160, y, str(cantidad))
-        p.drawString(200, y, f"${precio:.2f}")
-        p.drawString(270, y, f"${descuento:.2f}")
-        p.drawString(320, y, f"{iva_porcentaje:.0f}%")
-        p.drawString(380, y, f"${subtotal_desc:.2f}")
-        p.drawString(470, y, f"${total:.2f}")
-        y -= 18
+        lineas = simpleSplit(producto, "Helvetica", 9, 100)
+        y_inicial = y
+        for linea in lineas:
+            p.drawString(50, y, linea)
+            y -= 12
+
+        # Otros campos en la primera línea
+        p.drawString(160, y_inicial, str(cantidad))
+        p.drawString(200, y_inicial, f"${precio:.2f}")
+        p.drawString(270, y_inicial, f"${descuento:.2f}")
+        p.drawString(320, y_inicial, f"{iva_porcentaje:.0f}%")
+        p.drawString(380, y_inicial, f"${subtotal_desc:.2f}")
+        p.drawString(470, y_inicial, f"${total:.2f}")
+
+        y -= 10
 
         if y < 100:
             p.showPage()
             y = height - 50
+            dibujar_encabezado()
 
     # Totales
-    y -= 10
+    if y < 100:
+        p.showPage()
+        y = height - 50
     p.setFont("Helvetica-Bold", 11)
+    y -= 20
     p.drawString(370, y, "TOTAL GENERAL:")
     p.drawString(470, y, f"${total_general:.2f}")
 
+    # Finalizar PDF
     p.showPage()
     p.save()
     buffer.seek(0)
-    return HttpResponse(buffer, content_type='application/pdf')
+
+    filename = f"Cotizacion_{cotizacion.numero_cotizacion or cotizacion.id}.pdf"
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
+    return response
+
+
+
 @login_required
 @cargo_requerido(['admin', 'Gerente','supervisor','cajero'])
 def modificar_cotizacion(request: HttpRequest, id: int) -> HttpResponse:

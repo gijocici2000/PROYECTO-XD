@@ -1,23 +1,31 @@
 {% extends 'index.html' %}
 
 {% block main %}
-    <div class="container-form">
-      <h2 class="text-center mb-1"> <b>modificar Descuento</b></h2>
-        
-          <form action="" method="post" class="w-25 mx-auto p-4 rounded" style="background-color: #308a9e; border: 1px solid #333;"> 
+<div class="container my-4">
+    <!-- Mensajes de éxito u error -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show mt-2" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="w-50 mx-auto p-4 rounded" style="background-color: #308a9e; border: 1px solid #333;">
+        <h2 class="text-center text-light mb-4"><b>Modificar Descuento</b></h2>
+
+        <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
             {{ form }}
             
             <div>
           
                 <div>
-    <div>
-            <div class="save-content">
-
-            <input type="submit"  value="Editar"class="btn btn-primary btn">
-
-            <input type="submit" value="cancelar" class="btn btn-outline-danger">
-          </div>
+     <div class="d-flex justify-content-between mt-4">
+                <button type="submit" class="btn btn-success px-4">Guardar Cambios</button>
+                <a href="{% url 'consultar_descuento' %}" class="btn btn-outline-light px-4">Cancelar</a>
+            </div>
           
                 </div>
               </div>

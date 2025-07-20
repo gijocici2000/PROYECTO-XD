@@ -57,7 +57,9 @@
     <canvas id="projector"></canvas>
 
     <!-- NAVBAR (se oculta si está en la vista de login) -->
-    {% if request.resolver_match.url_name != 'login' %}
+    {% if request.resolver_match.url_name != 'login' and request.resolver_match.url_name != 'password_reset' and request.resolver_match.url_name != 'password_reset_complete' and request.resolver_match.url_name != 'password_reset_confirm' and request.resolver_match.url_name != 'password_reset_done'  %}
+
+
         {% block navbar %}
         <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
             <div class="container-fluid">
@@ -195,7 +197,7 @@
     {% endblock %}
 
     <!-- FOOTER (se oculta también en login) -->
-    {% if request.resolver_match.url_name != 'login' %}
+    {% if request.resolver_match.url_name != 'login' and request.resolver_match.url_name != 'password_reset' and request.resolver_match.url_name != 'password_reset_complete' and request.resolver_match.url_name != 'password_reset_confirm' and request.resolver_match.url_name != 'password_reset_done'  %}
         <footer class="bg-dark text-white text-center py-3">
             <p class="mb-0">© 2025 Sistema de Ventas. Todos los derechos reservados.</p>
         </footer>
